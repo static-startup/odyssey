@@ -286,22 +286,73 @@ class user_interface {
 			stat(selected_filename.c_str(), &info);
 
 			if(std::experimental::filesystem::exists(selected_filename)) {
+				if(std::string(get_current_directory_size() + " sum,").length() > COLS) {
+					return;
+				}
+
+				std::string right_info = get_current_directory_size() + " sum, ";
+
+				if(right_info.length()
+				   + get_free_space(selected_filename).length() + 1 > COLS) {
+					
+					file_info = right_info;
+					return;
+				}
+
+				right_info += get_free_space(selected_filename) + " ";
+
+				if(right_info.length()
+				   + std::string(std::to_string(selected[0] + 1) + "/" + std::to_string(main_elements.size())).length() > COLS) {
+					
+					file_info = right_info;
+					return;
+				}
+
+				right_info += std::to_string(selected[0] + 1) + "/" + std::to_string(main_elements.size());
+
+				if(file_info.length()
+				   + right_info.length()
+				   + get_file_permissions(selected_filename).length() + 1 > COLS) {
+
+					file_info += std::string(COLS - file_info.length() - right_info.length(), ' ') + right_info;
+					return;
+				}
+
 				file_info += get_file_permissions(selected_filename) + " ";
+
+				if(file_info.length()
+				   + right_info.length()
+				   + get_file_owner(selected_filename, info).length() + 1 > COLS) {
+
+					file_info += std::string(COLS - file_info.length() - right_info.length(), ' ') + right_info;
+					return;
+				}
+
 				file_info += get_file_owner(selected_filename, info) + " ";
 
 				if(!std::experimental::filesystem::is_directory(selected_filename)) {
+					if(file_info.length()
+					   + right_info.length()
+					   + get_file_size(selected_filename).length() + 1 > COLS) {
+
+						file_info += std::string(COLS - file_info.length() - right_info.length(), ' ') + right_info;
+						return;
+					}
+
 					file_info += get_file_size(selected_filename) + " ";
 				}
 
+				if(file_info.length()
+				   + right_info.length()
+				   + get_file_creation_time(selected_filename, info).length() + 1 > COLS) {
+
+					file_info += std::string(COLS - file_info.length() - right_info.length(), ' ') + right_info;
+					return;
+				}
+				
 				file_info += get_file_creation_time(selected_filename, info);
-
-				std::string right_info = get_current_directory_size() + " sum, "
-										 + get_free_space(selected_filename) + " "
-										 + std::to_string(selected[0] + 1) + "/"
-										 + std::to_string(main_elements.size());
-
-				file_info += std::string(COLS - file_info.length() - right_info.length(), ' ');
-				file_info += right_info;
+				file_info += std::string(COLS - file_info.length() - right_info.length(), ' ')
+						   + right_info;
 			}
 		}
 
@@ -318,8 +369,14 @@ class user_interface {
 		}
 
 		void draw_current_directory() {
+			std::string current_path = std::string(std::experimental::filesystem::current_path());
+
 			mvwprintw(stdscr, 0, 0, std::string(COLS, ' ').c_str());
-			mvwprintw(stdscr, 0, 0, std::experimental::filesystem::current_path().c_str());
+			mvwprintw(stdscr, 0, 0, current_path.c_str());
+
+			wattron(stdscr, A_BOLD);
+			mvwprintw(stdscr, 0, current_path.length(), std::string("/" + main_elements[selected[0]]).c_str());
+			wattroff(stdscr, A_BOLD);
 		}
 
 		void colors_on(int i) {
