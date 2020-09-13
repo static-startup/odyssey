@@ -71,7 +71,6 @@ struct open {
 };
 
 # include "config.h"
-# include "utils.h"
 
 class user_interface;
 
@@ -641,6 +640,37 @@ class user_interface {
 			clear_windows();
 			refresh();
 		}
+
+		std::vector<std::string> split_into_args(std::string str) {
+			std::vector<std::string> result(1);
+			bool in_quotation = false;
+			for(int i = 0; i < str.length(); i++) {
+				if(i != 0) {
+					if(str[i] == '"') {
+						if(str[i - 1] == '\\') {
+							result[result.size() - 1].pop_back();
+						} else {
+							in_quotation = !in_quotation;
+							continue;
+						}
+					}
+					if(i != str.length() - 1
+						&& str[i + 1] != ' '
+						&& str[i] == ' '
+						&& !in_quotation){
+
+						if(str[i - 1] == '\\') {
+							result[result.size() - 1].pop_back();
+						} else {
+							result.push_back("");
+							continue;
+						}
+					}
+				}
+				result[result.size() - 1] += str[i];
+			}
+			return result;
+		}
 };
 
 void commands::selected_up(user_interface *ui) {
@@ -1069,8 +1099,6 @@ void commands::copy(std::vector<std::string> args, user_interface *ui) {
 	}
 }
 
-// fasdfasf asd asdf asd asd asd fasd fasd fasdf asdfasdjfk asdl;kf jasdkl;fj askl;dfj askl;dfj 
-
 void commands::copy_all(std::vector<std::string> args, user_interface *ui) {
 	if(args.size() == 2) {
 		if(boost::filesystem::exists(args[0])
@@ -1151,7 +1179,7 @@ void commands::paste(user_interface *ui) {
 }
 
 void commands::process_command(std::string command, user_interface *ui) {
-	std::vector<std::string> args = split_into_args(command);
+	std::vector<std::string> args = ui->split_into_args(command);
 	std::vector<std::string> argsp = std::vector<std::string>(args.begin() + 1, args.end());
 
 	for(int i = 0; i < command_map.size(); i++) {

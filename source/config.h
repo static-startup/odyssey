@@ -23,37 +23,25 @@ static constexpr bool color_terminal = true;
 /* map a name to a command */
 static const std::vector<command> command_map = {
 	{ "q",          EXIT },
-	{ "x",          EXIT },
-	{ "quit",       EXIT },
-	{ "exit",       EXIT },
-
 	{ "down",       DOWN },
 	{ "up",         UP },
 	{ "set",        SET },
-
 	/* { "load",       LOAD }, */
 	{ "get",        GET },
 	{ "cd",         CD },
-
 	{ "hidden",     HIDD },
-	{ ".",          HIDD },
-
 	{ "mkdir",      MKDIR },
 	{ "open",       OPEN },
 	{ "rename",     RENAME },
 	{ "brename",    BRENAME },
 	{ "erename",    ERENAME },
-
 	{ "rm",         REMOVE },
 	{ "rrm",        RREMOVE },
-
 	{ "touch",      TOUCH },
 	{ "select",     SELECT },
-
 	{ "cp",         COPY },
 	{ "rcp",        RCOPY },
 	{ "cpdir",      COPYDIR },
-
 	{ "paste",      PASTE },
 };
 
