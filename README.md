@@ -1,7 +1,32 @@
 ### What Is This?
 
-Simple. It's a console filemanager. Like ranger, but made in c++ so faster.
+Simple. It's my personal console filemanager. Like ranger, but made in c++ so faster.
 
-### Can I Use This?
+### Documentation
 
-No. Not yet.
+> q
+> down
+> up
+> set {...}
+> get {cursor} {...}
+> cd {directory}
+> hidden
+> mkdir {...}
+> open {directory/file}
+> rename {base} {target}
+> rename {target}
+> rename
+> brename
+> erename
+> rm {...}
+> rrm {...}
+> touch {...}
+> select
+> cp {base} {target}
+> cp {target}
+> cp
+> rcp {base} {target}
+> rcp {target}
+> rcp
+> paste
+> cpdir
