@@ -8,6 +8,9 @@ static constexpr bool draw_border = false;
 static constexpr int size_precision = 2;
 static constexpr int free_size_precision = 1;
 
+/* amount of spaces for selected element */
+static constexpr int selected_space_size = 2;
+
 /* specify the directory on launch */
 static const std::string starting_directory = "/home/static-startup";
 

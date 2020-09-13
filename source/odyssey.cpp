@@ -367,10 +367,16 @@ class user_interface {
 				if(main_window || (!main_window
 				   && boost::filesystem::is_directory(main_elements[selected[0]]))) {
 
-					if(main_window && std::find(selected.begin(), selected.end(), i + scroll)
+					int draw_x = 0;
+
+					if(selected[0] == i + scroll) {
+						wattron(window, A_REVERSE);
+					}
+
+					if(main_window && std::find(selected.begin() + 1, selected.end(), i + scroll)
 							!= selected.end()) {
 
-						wattron(window, A_REVERSE);
+						draw_x = selected_space_size;
 					}
 
 					if(color_terminal) {
@@ -383,12 +389,12 @@ class user_interface {
 
 					std::string size = sizes[index];
 
-					if(elements[index].length() + size.length() < x) {
-						mvwprintw(window, i, 0, std::string(elements[index] + std::string(
-								x - elements[index].length() - size.length(), ' ') + size).c_str());
+					if(elements[index].length() + size.length() + draw_x < x) {
+						mvwprintw(window, i, draw_x, std::string(elements[index] + std::string(
+								x - elements[index].length() - size.length() - draw_x, ' ') + size).c_str());
 					} else {
-						mvwprintw(window, i, 0, std::string(
-								elements[index].substr(0, x - size.length() - 4) + "~ " + size).c_str());
+						mvwprintw(window, i, draw_x, std::string(
+								elements[index].substr(0, x - size.length() - 4 - draw_x + 2) + "~ " + size).c_str());
 					}
 
 					colors_off();
