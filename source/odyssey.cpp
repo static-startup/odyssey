@@ -37,9 +37,9 @@ enum action {
 	HIDD,
 	MKDIR,
 	OPEN,
-	RENAME,
-	BRENAME,
-	ERENAME,
+	MOVE,
+	BMOVE,
+	EMOVE,
 	REMOVE,
 	RREMOVE,
 	TOUCH,
@@ -87,9 +87,9 @@ class commands {
 		static void cd(std::vector<std::string> args, user_interface *ui);
 		static void mkdir(std::vector<std::string> args, user_interface *ui);
 		static void open(std::vector<std::string> args, user_interface *ui);
-		static void rename(std::vector<std::string> args, user_interface *ui);
-		static void begin_rename(std::vector<std::string> args, user_interface *ui);
-		static void end_rename(std::vector<std::string> args, user_interface *ui);
+		static void move_file(std::vector<std::string> args, user_interface *ui);
+		static void begin_move(std::vector<std::string> args, user_interface *ui);
+		static void end_move(std::vector<std::string> args, user_interface *ui);
 		static void remove(std::vector<std::string> args, user_interface *ui);
 		static void remove_all(std::vector<std::string> args, user_interface *ui);
 		static void touch(std::vector<std::string> args, user_interface *ui);
@@ -951,10 +951,10 @@ void commands::open(std::vector<std::string> args, user_interface *ui) {
 	}
 }
 
-void commands::rename(std::vector<std::string> args, user_interface *ui) {
+void commands::move_file(std::vector<std::string> args, user_interface *ui) {
 	if(args.size() == 0) {
 		boost::filesystem::path selected_filename(ui->get_main_elements()[ui->get_selected()[0]]);
-		get_string({"8", "rename \"", selected_filename.extension().string(), "\""}, ui);
+		get_string({"4", "mv \"", selected_filename.extension().string(), "\""}, ui);
 	} if(args.size() == 1) {
 		if(boost::filesystem::exists(args[0])
 		&& boost::filesystem::is_directory(args[0])) {
@@ -963,11 +963,11 @@ void commands::rename(std::vector<std::string> args, user_interface *ui) {
 
 			for(int i = 1; i < selected.size(); i++) {
 				std::string selected_filename = ui->get_main_elements()[selected[i]];
-				rename({selected_filename, args[0]}, ui);
+				move_file({selected_filename, args[0]}, ui);
 			}
 		} else {
 			std::string selected_filename = ui->get_main_elements()[ui->get_selected()[0]];
-			rename({selected_filename, args[0]}, ui);
+			move_file({selected_filename, args[0]}, ui);
 		}
 	} else if(args.size() == 2) {
 		if(boost::filesystem::exists(args[0])
@@ -992,18 +992,18 @@ void commands::rename(std::vector<std::string> args, user_interface *ui) {
 	ui->set_selected(std::vector<int>{ 0 });
 }
 
-void commands::begin_rename(std::vector<std::string> args, user_interface *ui) {
-	get_string({"8", "rename \"", ui->get_main_elements()[ui->get_selected()[0]], "\""}, ui);
+void commands::begin_move(std::vector<std::string> args, user_interface *ui) {
+	get_string({"4", args[0], "mv \"", ui->get_main_elements()[ui->get_selected()[0]], "\""}, ui);
 }
 
-void commands::end_rename(std::vector<std::string> args, user_interface *ui) {
+void commands::end_move(std::vector<std::string> args, user_interface *ui) {
 	boost::filesystem::path selected_filename(
 				ui->get_main_elements()[ui->get_selected()[0]]);
 
-	int begin_at = 7 + (selected_filename.string().length() -
+	int begin_at = 4 + (selected_filename.string().length() -
 			selected_filename.extension().string().length());
 
-	get_string({std::to_string(begin_at + 1), "rename \"", selected_filename.string(), "\""}, ui);
+	get_string({std::to_string(begin_at + 1), "mv \"", selected_filename.string(), "\""}, ui);
 }
 
 void commands::remove(std::vector<std::string> args, user_interface *ui) {
@@ -1193,9 +1193,9 @@ void commands::process_command(std::string command, user_interface *ui) {
 				case HIDD     : commands::toggle_hidden(ui);              break;
 				case MKDIR    : commands::mkdir(argsp, ui);               break;
 				case OPEN     : commands::open(argsp, ui);                break;
-				case RENAME   : commands::rename(argsp, ui);              break;
-				case BRENAME  : commands::begin_rename(argsp, ui);        break;
-				case ERENAME  : commands::end_rename(argsp, ui);          break;
+				case MOVE     : commands::move_file(argsp, ui);           break;
+				case BMOVE    : commands::begin_move(argsp, ui);          break;
+				case EMOVE    : commands::end_move(argsp, ui);            break;
 				case REMOVE   : commands::remove(argsp, ui);              break;
 				case RREMOVE  : commands::remove_all(argsp, ui);          break;
 				case TOUCH    : commands::touch(argsp, ui);               break;
