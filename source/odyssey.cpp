@@ -923,6 +923,7 @@ void commands::mkdir(std::vector<std::string> args, user_interface *ui) {
 					boost::filesystem::weakly_canonical(args[i]));
 		}
 	}
+	ui->set_selected(std::vector<int>{ ui->get_selected()[0] });
 }
 
 void commands::open(std::vector<std::string> args, user_interface *ui) {
@@ -1049,6 +1050,7 @@ void commands::touch(std::vector<std::string> args, user_interface *ui) {
 						+ boost::filesystem::weakly_canonical(args[i]).string() + "\"").c_str());
 		}
 	}
+	ui->set_selected(std::vector<int>{ ui->get_selected()[0] });
 }
 
 void commands::select(std::vector<std::string> args, user_interface *ui) {
@@ -1174,6 +1176,8 @@ void commands::paste(user_interface *ui) {
 		copy_all({line, boost::filesystem::current_path().string()
 				+ "/" + line.substr(line.find_last_of("/") + 1, line.length())}, ui);
 	}
+
+	ui->set_selected(std::vector<int>{ ui->get_selected()[0] });
 }
 
 void commands::process_command(std::string command, user_interface *ui) {
@@ -1209,9 +1213,6 @@ void commands::process_command(std::string command, user_interface *ui) {
 	}
 
 	load_directory({boost::filesystem::current_path().string(), "main"}, ui);
-	if(!ui->get_main_elements().empty()) {
-		load_directory({ui->get_main_elements()[ui->get_selected()[0]], "preview"}, ui);
-	}
 }
 
 int main() {
