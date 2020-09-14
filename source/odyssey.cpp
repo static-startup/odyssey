@@ -841,6 +841,7 @@ void commands::load_directory(std::vector<std::string> args, user_interface *ui)
 }
 
 void commands::cd(std::vector<std::string> args, user_interface *ui) {
+	std::string current_directory = boost::filesystem::canonical(ui->get_main_elements()[ui->get_selected()[0]]).string();
 	ui->set_selected(std::vector<int>{ 0 });
 
 	if(args.size() == 0) {
@@ -854,12 +855,36 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 
 			if(boost::filesystem::exists(newpath)) {
 				boost::filesystem::current_path(newpath);
+				load_directory({boost::filesystem::current_path().string(), "main"}, ui);
+
+				std::vector<std::string> file_history = ui->get_file_history();
+				for(const auto &entry : boost::filesystem::directory_iterator(newpath)) {
+					std::vector<std::string>::iterator iterator =
+						std::find(file_history.begin(), file_history.end(), entry.path().string());
+
+					if(iterator != file_history.end()) {
+						std::string filename = file_history[std::distance(file_history.begin(), iterator)];
+						filename = filename.substr(filename.find_last_of('/') + 1, filename.length());
+						ui->set_selected(filename);
+					}
+				}
 
 				if(std::count(oldpath.begin(), oldpath.end(), '/')
 				   > std::count(newpath.begin(), newpath.end(), '/')
 		   		   && oldpath.substr(0, newpath.length()) == newpath) {
 
-					load_directory({}, ui);
+					std::vector<std::string> file_history = ui->get_file_history();
+
+					for(int i = 0; i < file_history.size(); i++) {
+						if(file_history[i].substr(0, file_history[i].find_last_of('/'))
+						== current_directory.substr(0, current_directory.find_last_of('/'))) {
+
+							file_history.erase(file_history.begin() + i);
+						}
+					}
+
+					file_history.push_back(current_directory);
+					ui->set_file_history(file_history);
 
 					std::string filename = oldpath.substr(newpath.length() + 1, oldpath.length());
 					if(std::count(filename.begin(), filename.end(), '/') == 0) {
@@ -1058,8 +1083,7 @@ void commands::copy(std::vector<std::string> args, user_interface *ui) {
 	} else if(args.size() == 1) {
 		std::vector<int> selected = ui->get_selected();
 		for(int i = 1; i < selected.size(); i++) {
-			std::string selected_filename = ui->get_main_elements()[selected[i]];
-			copy({selected_filename, args[0]}, ui);
+			copy({ui->get_main_elements()[selected[i]], args[0]}, ui);
 		}
 	} else if(args.size() == 0 && ui->get_selected().size() != 1) {
 		std::string command = "";
@@ -1079,7 +1103,6 @@ void commands::copy(std::vector<std::string> args, user_interface *ui) {
 void commands::copy_all(std::vector<std::string> args, user_interface *ui) {
 	if(args.size() == 2) {
 		if(boost::filesystem::exists(args[0])
-		   && !boost::filesystem::is_directory(args[0])
 		   && !boost::filesystem::exists(args[1])
 		   || (boost::filesystem::exists(args[1])
 		   && boost::filesystem::is_directory(args[1]))) {
@@ -1101,8 +1124,7 @@ void commands::copy_all(std::vector<std::string> args, user_interface *ui) {
 	} else if(args.size() == 1) {
 		std::vector<int> selected = ui->get_selected();
 		for(int i = 1; i < selected.size(); i++) {
-			std::string selected_filename = ui->get_main_elements()[selected[i]];
-			copy({selected_filename, args[0]}, ui);
+			copy({ui->get_main_elements()[selected[i]], args[0]}, ui);
 		}
 	} else if(args.size() == 0 && ui->get_selected().size() != 1) {
 		std::string command = "";
