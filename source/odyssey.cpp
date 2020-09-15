@@ -8,6 +8,7 @@
 # include <iomanip>
 # include <sstream>
 # include <fstream>
+# include <chrono>
 # include <vector>
 # include <string>
 # include <pwd.h>
@@ -48,6 +49,9 @@ enum action {
 	RCOPY,
 	COPYDIR,
 	PASTE,
+	TOP,
+	BOTTOM,
+	SHELL,
 };
 
 struct colors {
@@ -62,6 +66,7 @@ struct command {
 
 struct event {
 	int key;
+	int double_key = -1;
 	std::string command;
 };
 
@@ -98,6 +103,9 @@ class commands {
 		static void copy_all(std::vector<std::string> args, user_interface *ui);
 		static void copy_directory();
 		static void paste(user_interface *ui);
+		static void top(user_interface *ui);
+		static void bottom(user_interface *ui);
+		static void run_shell(std::vector<std::string> args);
 		static void process_command(std::string command, user_interface *ui);
 };
 
@@ -114,11 +122,52 @@ class user_interface {
 
 		std::vector<std::string> file_history;
 
+		std::vector<int> keys;
+		std::vector<unsigned long> key_times;
+
 		std::vector<int> selected = { 0 };
 
 		std::string file_info = "";
 
 		int scroll = 0;
+
+		unsigned long current_time() {
+			return std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::system_clock::now().time_since_epoch()).count();
+		}
+
+		void add_key(int key) {
+			for(int i = 0; i < event_map.size(); i++) {
+				if(event_map[i].key == key) {
+					commands::process_command(event_map[i].command, this);
+					return;
+				}
+			}
+
+			std::vector<int>::iterator iterator = std::find(keys.begin(), keys.end(), key);
+			if(iterator != keys.end()) {
+				int element = std::distance(keys.begin(), iterator); 
+
+				for(int i = 0; i < event_map.size(); i++) {
+					if(event_map[i].double_key == key
+					&& key_times[i] + 500 < current_time()) {
+
+						commands::process_command(event_map[i].command, this);
+					}
+				}
+
+				keys.erase(keys.begin() + element);
+				return;
+			}
+
+			for(int i = 0; i < event_map.size(); i++) {
+				if(event_map[i].double_key == key) {
+					keys.push_back(key);
+					key_times.push_back(current_time());
+					return;
+				}
+			}
+		}
 
 		void handle_frame() {
 			clear_windows();
@@ -140,11 +189,14 @@ class user_interface {
 			int key;
 			while(key = getch()) {
 				if(key != ERR) {
+					add_key(key);
+					/*
 					for(int i = 0; i < event_map.size(); i++) {
 						if(event_map[i].key == key) {
 							commands::process_command(event_map[i].command, this);
 						}
 					}
+					*/
 					break;
 				}
 			}
@@ -373,7 +425,7 @@ class user_interface {
 
 					int draw_x = 0;
 
-					if(selected[0] == i + scroll) {
+					if(main_window && selected[0] == i + scroll) {
 						wattron(window, A_REVERSE);
 					}
 
@@ -542,7 +594,9 @@ class user_interface {
 		void loop() {
 			boost::filesystem::current_path(starting_directory);
 			commands::load_directory({boost::filesystem::current_path().string(), "main"}, this);
-			commands::load_directory({main_elements[selected[0]], "preview"}, this);
+			if(!main_elements.empty()) {
+				commands::load_directory({main_elements[selected[0]], "preview"}, this);
+			}
 
 			while(true) {
 				clear_screen();
@@ -909,6 +963,10 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 			}
 		}
 	}
+
+	if(!ui->get_main_elements().empty()) {
+		load_directory({ui->get_main_elements()[ui->get_selected()[0]], "preview"}, ui);
+	}
 }
 
 void commands::toggle_hidden(user_interface *ui) {
@@ -954,8 +1012,18 @@ void commands::open(std::vector<std::string> args, user_interface *ui) {
 
 void commands::move_file(std::vector<std::string> args, user_interface *ui) {
 	if(args.size() == 0) {
-		boost::filesystem::path selected_filename(ui->get_main_elements()[ui->get_selected()[0]]);
-		get_string({"4", "mv \"", selected_filename.extension().string(), "\""}, ui);
+		if(ui->get_selected().size() == 1) {
+			boost::filesystem::path selected_filename(ui->get_main_elements()[ui->get_selected()[0]]);
+			get_string({"4", "mv \"", selected_filename.extension().string(), "\""}, ui);
+		} else {
+			std::vector<int> selected = ui->get_selected();
+			std::string selected_filename = ui->get_main_elements()[selected[0]];
+			if(boost::filesystem::is_directory(selected_filename)) {
+				for(int i = 1; i < selected.size(); i++) {
+					move_file({ui->get_main_elements()[selected[i]], selected_filename}, ui);
+				}
+			}
+		}
 	} if(args.size() == 1) {
 		if(boost::filesystem::exists(args[0])
 		&& boost::filesystem::is_directory(args[0])) {
@@ -1014,8 +1082,6 @@ void commands::remove(std::vector<std::string> args, user_interface *ui) {
 			remove({ui->get_main_elements()[selected[i]]}, ui);
 		}
 	} else {
-		ui->set_selected(std::vector<int>{0});
-
 		for(int i = 0; i < args.size(); i++) {
 			if(boost::filesystem::exists(args[i])
 			|| !boost::filesystem::is_directory(args[i])) {
@@ -1024,6 +1090,8 @@ void commands::remove(std::vector<std::string> args, user_interface *ui) {
 			}
 		}
 	}
+
+	ui->set_selected(std::vector<int>{ 0 });
 }
 
 void commands::remove_all(std::vector<std::string> args, user_interface *ui) {
@@ -1033,14 +1101,14 @@ void commands::remove_all(std::vector<std::string> args, user_interface *ui) {
 			remove_all({ui->get_main_elements()[selected[i]]}, ui);
 		}
 	} else {
-		ui->set_selected(std::vector<int>{0});
-
 		for(int i = 0; i < args.size(); i++) {
 			if(boost::filesystem::exists(args[i])) {
 				boost::filesystem::remove_all(boost::filesystem::canonical(args[i]));
 			}
 		}
 	}
+
+	ui->set_selected(std::vector<int>{ 0 });
 }
 
 void commands::touch(std::vector<std::string> args, user_interface *ui) {
@@ -1180,6 +1248,28 @@ void commands::paste(user_interface *ui) {
 	ui->set_selected(std::vector<int>{ ui->get_selected()[0] });
 }
 
+void commands::top(user_interface *ui) {
+	if(!ui->get_main_elements().empty()) {
+		set_selected({std::to_string(ui->get_main_elements().size())}, ui);
+	}
+}
+
+void commands::bottom(user_interface *ui) {
+	if(!ui->get_main_elements().empty()) {
+		set_selected({"1"}, ui);
+	}
+}
+
+void commands::run_shell(std::vector<std::string> args) {
+	std::string command;
+
+	for(std::string element : args) {
+		command += element + " ";
+	}
+
+	system(command.c_str());
+}
+
 void commands::process_command(std::string command, user_interface *ui) {
 	std::vector<std::string> args = ui->split_into_args(command);
 	std::vector<std::string> argsp = std::vector<std::string>(args.begin() + 1, args.end());
@@ -1208,6 +1298,9 @@ void commands::process_command(std::string command, user_interface *ui) {
 				case RCOPY    : commands::copy_all(argsp, ui);            break;
 				case COPYDIR  : commands::copy_directory();               break;
 				case PASTE    : commands::paste(ui);                      break;
+				case TOP      : commands::top(ui);                        break;
+				case BOTTOM   : commands::bottom(ui);                     break;
+				case SHELL    : commands::run_shell(argsp);               break;
 			}
 		}
 	}
