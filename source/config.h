@@ -1,10 +1,10 @@
 # ifndef CONFIG_H
 # define CONFIG_H
 
-/* draw border on windows or not */
+/* draw window border */
 static constexpr bool draw_border = false;
 
-/* sets the decimal precision for file sizes */
+/* sets the decimal precision of double */
 static constexpr int size_precision = 2;
 static constexpr int free_size_precision = 1;
 
@@ -25,55 +25,51 @@ static constexpr bool color_terminal = true;
 
 /* map a name to a command */
 static const std::vector<command> command_map = {
-	{ "q",          EXIT },
+	{ "q",          QUIT },
 	{ "down",       DOWN },
 	{ "up",         UP },
 	{ "set",        SET },
-	/* { "load",       LOAD }, */
+	{ "load",       LOAD },
 	{ "get",        GET },
 	{ "cd",         CD },
-	{ "hidden",     HIDD },
+	{ "hidden",     HIDDEN },
 	{ "mkdir",      MKDIR },
 	{ "open",       OPEN },
 	{ "mv",         MOVE },
 	{ "bmv",        BMOVE },
 	{ "emv",        EMOVE },
 	{ "rm",         REMOVE },
-	{ "rrm",        RREMOVE },
 	{ "touch",      TOUCH },
 	{ "select",     SELECT },
 	{ "cp",         COPY },
-	{ "rcp",        RCOPY },
 	{ "cpdir",      COPYDIR },
 	{ "paste",      PASTE },
 	{ "top",        TOP },
 	{ "bottom",     BOTTOM },
-	{ "sh"   ,      SHELL },
+	{ "sh",         SHELL },
 };
 
 /* map a key to a command */
 std::vector<event> event_map = {
-	{ 'q', -1,      "q" },
-	{ 'j', -1,      "down" },
-	{ 'k', -1,      "up" },
-	{ ':', -1,      "get -1" },
-	{ 'l', -1,      "open" },
-	{ 'h', -1,      "cd .." },
-	{ '.', -1,      "hidden" },
-	{ 'd', -1,      "get 6 \"mkdir \"" },
-	{ 'm', -1,      "mv"},
-	{ 'A', -1,      "emv" },
-	{ 'I', -1,      "bmv" },
-	{ 'r', -1,      "rm" },
-	{ 'R', -1,      "rrm" },
-	{ ' ', -1,      "select" },
-	{ 'c', -1,      "get 3 \"cp \"" },
-	{ 'C', -1,      "get 4 \"rcp \"" },
-	{ 'D', -1,      "cpdir" },
-	{ 'p', -1,      "paste" },
-	{ 't', -1,      "get 6 \"touch \"" },
-	{ -1,  'g',     "top" },
-	{ 'G', -1,      "bottom" },
+	{ 'q',   -1,      "q" },
+	{ 'j',   -1,      "down" },
+	{ 'k',   -1,      "up" },
+	{ ':',   -1,      "get -1" },
+	{ 'l',   -1,      "open" },
+	{ 'h',   -1,      "cd .." },
+	{ '.',   -1,      "hidden" },
+	{ 'd',   -1,      "get 6 \"mkdir \"" },
+	{ 'm',   -1,      "mv"},
+	{ 'A',   -1,      "emv" },
+	{ 'I',   -1,      "bmv" },
+	{ 'r',   -1,      "rm" },
+	{ ' ',   -1,      "select" },
+	{ 'c',   -1,      "get 3 \"cp \"" },
+	{ 'D',   -1,      "cpdir" },
+	{ 'p',   -1,      "paste" },
+	{ 't',   -1,      "get 6 \"touch \"" },
+	{  -1,   'g',     "top" },
+	{ 'G',   -1,      "bottom" },
 };
 
 /* map file type to color */
@@ -116,7 +112,8 @@ static const std::vector<colors> colors_map = {
 	{ ".mov",      BLUE },
 	{ ".wmv",      BLUE },
 	{ ".mov",      BLUE },
-	{ ".amv",      BLUE }, { ".mp4",      BLUE },
+	{ ".amv",      BLUE },
+	{ ".mp4",      BLUE },
 	{ ".m4p",      BLUE },
 	{ ".m4v",      BLUE },
 	{ ".mpg",      BLUE },
