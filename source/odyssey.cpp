@@ -462,6 +462,8 @@ class user_interface {
 			}
 		}
 
+	public:
+
 		void bound_selected() {
 			int y, x;
 			getmaxyx(main_window, y, x);
@@ -475,8 +477,6 @@ class user_interface {
 				selected[0] > main_elements.size() - 1 ?
 				main_elements.size() - 1 : selected[0];
 		}
-
-	public:
 
 		std::vector<std::string> get_file_history() {
 			return file_history;
@@ -967,11 +967,13 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 	if(!ui->get_main_elements().empty()) {
 		load_directory({ui->get_main_elements()[ui->get_selected()[0]], "preview"}, ui);
 	}
+
+	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::toggle_hidden(user_interface *ui) {
-	ui->set_selected(std::vector<int>{ 0 });
 	show_hidden = !show_hidden;
+	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::mkdir(std::vector<std::string> args, user_interface *ui) {
@@ -981,7 +983,8 @@ void commands::mkdir(std::vector<std::string> args, user_interface *ui) {
 					boost::filesystem::weakly_canonical(args[i]));
 		}
 	}
-	ui->set_selected(std::vector<int>{ ui->get_selected()[0] });
+
+	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::open(std::vector<std::string> args, user_interface *ui) {
@@ -1008,6 +1011,8 @@ void commands::open(std::vector<std::string> args, user_interface *ui) {
 			}
 		}
 	}
+
+	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::move_file(std::vector<std::string> args, user_interface *ui) {
@@ -1058,7 +1063,7 @@ void commands::move_file(std::vector<std::string> args, user_interface *ui) {
 		}
 	}
 
-	ui->set_selected(std::vector<int>{ 0 });
+	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::begin_move(std::vector<std::string> args, user_interface *ui) {
@@ -1091,7 +1096,7 @@ void commands::remove(std::vector<std::string> args, user_interface *ui) {
 		}
 	}
 
-	ui->set_selected(std::vector<int>{ 0 });
+	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::remove_all(std::vector<std::string> args, user_interface *ui) {
@@ -1108,7 +1113,7 @@ void commands::remove_all(std::vector<std::string> args, user_interface *ui) {
 		}
 	}
 
-	ui->set_selected(std::vector<int>{ 0 });
+	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::touch(std::vector<std::string> args, user_interface *ui) {
@@ -1118,7 +1123,8 @@ void commands::touch(std::vector<std::string> args, user_interface *ui) {
 						+ boost::filesystem::weakly_canonical(args[i]).string() + "\"").c_str());
 		}
 	}
-	ui->set_selected(std::vector<int>{ ui->get_selected()[0] });
+
+	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::select(std::vector<std::string> args, user_interface *ui) {
@@ -1181,6 +1187,8 @@ void commands::copy(std::vector<std::string> args, user_interface *ui) {
 		command.insert(0, "echo -e \"");
 		system(command.c_str());
 	}
+
+	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::copy_all(std::vector<std::string> args, user_interface *ui) {
@@ -1222,6 +1230,8 @@ void commands::copy_all(std::vector<std::string> args, user_interface *ui) {
 		command.insert(0, "echo -e \"");
 		system(command.c_str());
 	}
+
+	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::paste(user_interface *ui) {
@@ -1245,7 +1255,7 @@ void commands::paste(user_interface *ui) {
 				+ "/" + line.substr(line.find_last_of("/") + 1, line.length())}, ui);
 	}
 
-	ui->set_selected(std::vector<int>{ ui->get_selected()[0] });
+	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::top(user_interface *ui) {
@@ -1306,6 +1316,7 @@ void commands::process_command(std::string command, user_interface *ui) {
 	}
 
 	load_directory({boost::filesystem::current_path().string(), "main"}, ui);
+	ui->bound_selected();
 }
 
 int main() {
