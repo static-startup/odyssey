@@ -1,3 +1,4 @@
+#include <boost/algorithm/string.hpp>
 # include <experimental/filesystem>
 # include <boost/filesystem.hpp>
 # include <sys/stat.h>
@@ -50,6 +51,7 @@ enum action {
 	TOP,
 	BOTTOM,
 	SHELL,
+	RENAME,
 };
 
 struct colors {
@@ -107,31 +109,36 @@ class user_interface {
 		}
 
 		void add_key(int key) {
+			for(int i = 0; i < keys.size(); i++) {
+				for(int j = 0; j < event_map.size(); j++) {
+					if(keys[i] == event_map[j].key
+					&& key == event_map[j].double_key) {
+
+						bool flag = false;
+						if(key_times[i] + 500 > current_time()) {
+							flag = true;
+						}
+
+						keys.erase(keys.begin() + i);
+						key_times.erase(key_times.begin() + i);
+
+						if(flag) {
+							commands::process_command(event_map[j].command, this);
+							return;
+						}
+					}
+				}
+			}
+
 			for(int i = 0; i < event_map.size(); i++) {
-				if(event_map[i].key == key) {
+				if(event_map[i].key == key && event_map[i].double_key == -1) {
 					commands::process_command(event_map[i].command, this);
 					return;
 				}
 			}
-
-			std::vector<int>::iterator iterator = std::find(keys.begin(), keys.end(), key);
-			if(iterator != keys.end()) {
-				int element = std::distance(keys.begin(), iterator); 
-
-				for(int i = 0; i < event_map.size(); i++) {
-					if(event_map[i].double_key == key
-					&& key_times[i] + 500 < current_time()) {
-
-						commands::process_command(event_map[i].command, this);
-					}
-				}
-
-				keys.erase(keys.begin() + element);
-				return;
-			}
-
+			
 			for(int i = 0; i < event_map.size(); i++) {
-				if(event_map[i].double_key == key) {
+				if(event_map[i].key == key) {
 					keys.push_back(key);
 					key_times.push_back(current_time());
 					return;
@@ -679,34 +686,8 @@ class user_interface {
 		}
 
 		std::vector<std::string> split_into_args(std::string str) {
-			std::vector<std::string> result(1);
-			bool in_quotation = false;
-			for(int i = 0; i < str.length(); i++) {
-				if(i != 0) {
-					if(str[i] == '"') {
-						if(str[i - 1] == '\\') {
-							result[result.size() - 1].pop_back();
-						} else {
-							in_quotation = !in_quotation;
-							continue;
-						}
-					}
-
-					if(i != str.length() - 1
-					&& str[i + 1] != ' '
-					&& str[i] == ' '
-					&& !in_quotation){
-
-						if(str[i - 1] == '\\') {
-							result[result.size() - 1].pop_back();
-						} else {
-							result.push_back("");
-							continue;
-						}
-					}
-				}
-				result[result.size() - 1] += str[i];
-			}
+			std::vector<std::string> result;
+			boost::split(result, str, boost::is_any_of(" "), boost::token_compress_on);
 			return result;
 		}
 };

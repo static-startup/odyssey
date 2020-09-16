@@ -33,7 +33,10 @@ void commands::set(std::vector<std::string> args, user_interface *ui) {
 void commands::quit(std::vector<std::string> args) {
 	endwin();
 	for(int i = 0; i < args.size(); i++) {
-		std::cout << args[i] << std::endl;
+		std::cout << args[i];
+		if(i != args.size() - 1) {
+			std::cout << " ";
+		}
 	}
 	exit(0);
 }
@@ -45,6 +48,9 @@ void commands::get(std::vector<std::string> args, user_interface *ui) {
 
 	for(int i = 1; i < args.size(); i++) {
 		placeholder += args[i];
+		if(i != args.size() - 1) {
+			placeholder += " ";
+		}
 	}
 
 	int cursor = placeholder.length();
@@ -181,11 +187,19 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 			cd({ui->get_main_elements()[ui->get_selected()[0]]}, ui);
 		}
 	} else {
-		if(boost::filesystem::exists(args[0])
-		&& boost::filesystem::is_directory(args[0])) {
+		std::string directory = "";
+		for(int i = 0; i < args.size(); i++) {
+			directory += args[i];
+			if(i != args.size() - 1) {
+				directory += " ";
+			}
+		}
+
+		if(boost::filesystem::exists(directory)
+		&& boost::filesystem::is_directory(directory)) {
 
 			std::string oldpath = boost::filesystem::current_path().string();
-			std::string newpath = boost::filesystem::canonical(args[0]).string();
+			std::string newpath = boost::filesystem::canonical(directory).string();
 
 			if(boost::filesystem::exists(newpath)) {
 				boost::filesystem::current_path(newpath);
@@ -235,7 +249,7 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 		}
 	}
 
-	if(!ui->get_main_elements().empty()) {
+	if(!ui->get_main_elements().empty() && args[0] == "main") {
 		load({"preview"}, ui);
 	}
 
@@ -248,11 +262,17 @@ void commands::hidden(user_interface *ui) {
 }
 
 void commands::mkdir(std::vector<std::string> args, user_interface *ui) {
+	std::string filename = "";
 	for(int i = 0; i < args.size(); i++) {
-		if(!boost::filesystem::exists(args[i])) {
-			boost::filesystem::create_directory(
-					boost::filesystem::weakly_canonical(args[i]));
+		filename += args[i];
+		if(i != args.size() - 1) {
+			filename += " ";
 		}
+	}
+
+	if(!boost::filesystem::exists(filename)) {
+		boost::filesystem::create_directory(
+				boost::filesystem::weakly_canonical(filename));
 	}
 
 	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
@@ -262,9 +282,17 @@ void commands::open(std::vector<std::string> args, user_interface *ui) {
 	if(args.size() == 0 && !ui->get_main_elements().empty()) {
 		open({ui->get_main_elements()[ui->get_selected()[0]]}, ui);
 	} else if(!ui->get_main_elements().empty()) {
-		if(boost::filesystem::exists(args[0])) {
-			if(boost::filesystem::is_directory(args[0])) {
-				cd({args[0]}, ui);
+		std::string filename = "";
+		for(int i = 0; i < args.size(); i++) {
+			filename += args[i];
+			if(i != args.size() - 1) {
+				filename += " ";
+			}
+		}
+
+		if(boost::filesystem::exists(filename)) {
+			if(boost::filesystem::is_directory(filename)) {
+				cd({filename}, ui);
 			} else {
 				boost::filesystem::path current_arg(
 						boost::filesystem::weakly_canonical(args[0]));
@@ -288,53 +316,58 @@ void commands::open(std::vector<std::string> args, user_interface *ui) {
 
 void commands::move_file(std::vector<std::string> args, user_interface *ui) {
 	if(args.size() == 0) {
-		if(ui->get_selected().size() == 1) {
-			boost::filesystem::path selected_filename(ui->get_main_elements()[ui->get_selected()[0]]);
-			get({"4", "mv \"", selected_filename.extension().string(), "\""}, ui);
-		} else {
+		if(ui->get_selected().size() != 1) {
 			std::vector<int> selected = ui->get_selected();
 			std::string selected_filename = ui->get_main_elements()[selected[0]];
-			if(boost::filesystem::is_directory(selected_filename)) {
+
+			if(boost::filesystem::exists(selected_filename)
+			&& boost::filesystem::is_directory(selected_filename)) {
+
 				for(int i = 1; i < selected.size(); i++) {
-					move_file({ui->get_main_elements()[selected[i]], selected_filename}, ui);
+					boost::filesystem::rename(selected_filename, ui->get_main_elements()[selected[i]]);
 				}
 			}
 		}
-	} if(args.size() == 1) {
-		if(boost::filesystem::exists(args[0])
-		&& boost::filesystem::is_directory(args[0])) {
+	} else if(args.size() == 1) {
+		std::string filename = "";
+		for(int i = 0; i < args.size(); i++) {
+			filename += args[i];
+			if(i != args.size() - 1) {
+				filename += " ";
+			}
+		}
+
+		if(boost::filesystem::exists(filename)
+		&& boost::filesystem::is_directory(filename)) {
 			
 			std::vector<int> selected = ui->get_selected();
-
 			for(int i = 1; i < selected.size(); i++) {
 				std::string selected_filename = ui->get_main_elements()[selected[i]];
-				move_file({selected_filename, args[0]}, ui);
-			}
-		} else {
-			std::string selected_filename = ui->get_main_elements()[ui->get_selected()[0]];
-			move_file({selected_filename, args[0]}, ui);
-		}
-	} else if(args.size() == 2) {
-		if(boost::filesystem::exists(args[0])
-		&& (!boost::filesystem::exists(args[1])
-		|| boost::filesystem::is_directory(args[1]))) {
 
-			if(boost::filesystem::is_directory(args[1])) {
-				boost::filesystem::path base_path(boost::filesystem::canonical(args[0]));
-				std::string target_path = boost::filesystem::canonical(args[1]).string()
+				boost::filesystem::path base_path(selected_filename);
+				std::string target_path = boost::filesystem::canonical(filename).string()
 					+ "/" + base_path.filename().string();
 
 				if(!boost::filesystem::exists(target_path)) {
 					boost::filesystem::rename(base_path, target_path);
 				}
-			} else {
-				boost::filesystem::rename(boost::filesystem::canonical(args[0]),
-						boost::filesystem::weakly_canonical(args[1]));
 			}
+		} else {
+			std::string selected_filename = ui->get_main_elements()[ui->get_selected()[0]];
+
+			boost::filesystem::rename(boost::filesystem::canonical(selected_filename),
+					boost::filesystem::weakly_canonical(filename));
 		}
 	}
 
 	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
+}
+
+void commands::rename(std::vector<std::string> args, user_interface *ui) {
+	boost::filesystem::path selected_filename(
+			ui->get_main_elements()[ui->get_selected()[0]]);
+
+	get({"3", "mv", selected_filename.extension().string()}, ui);
 }
 
 void commands::begin_move(std::vector<std::string> args, user_interface *ui) {
@@ -358,10 +391,16 @@ void commands::remove(std::vector<std::string> args, user_interface *ui) {
 			remove({ui->get_main_elements()[selected[i]]}, ui);
 		}
 	} else {
+		std::string filename = "";
 		for(int i = 0; i < args.size(); i++) {
-			if(boost::filesystem::exists(args[i])) {
-				boost::filesystem::remove_all(boost::filesystem::canonical(args[i]));
+			filename += args[i];
+			if(i != args.size() - 1) {
+				filename += " ";
 			}
+		}
+
+		if(boost::filesystem::exists(filename)) {
+			boost::filesystem::remove_all(boost::filesystem::canonical(filename));
 		}
 	}
 
@@ -369,11 +408,16 @@ void commands::remove(std::vector<std::string> args, user_interface *ui) {
 }
 
 void commands::touch(std::vector<std::string> args, user_interface *ui) {
+	std::string filename = "";
 	for(int i = 0; i < args.size(); i++) {
-		if(!boost::filesystem::exists(args[i])) {
-			system(std::string("vim \""
-						+ boost::filesystem::weakly_canonical(args[i]).string() + "\"").c_str());
+		filename += args[i];
+		if(i != args.size() - 1) {
+			filename += " ";
 		}
+	}
+
+	if(!boost::filesystem::exists(filename)) {
+		system(std::string("vim \"" + boost::filesystem::weakly_canonical(filename).string() + "\"").c_str());
 	}
 
 	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
@@ -402,31 +446,18 @@ void commands::copy_directory() {
 }
 
 void commands::copy(std::vector<std::string> args, user_interface *ui) {
-	if(args.size() == 2) {
-		if(boost::filesystem::exists(args[0])
-		&& !boost::filesystem::exists(args[1])
-		|| (boost::filesystem::exists(args[1])
-		&& boost::filesystem::is_directory(args[1]))) {
-
-			if(boost::filesystem::is_directory(args[1])) {
-				boost::filesystem::path base_path(boost::filesystem::canonical(args[0]));
-
-				std::experimental::filesystem::copy(base_path.string(),
-						boost::filesystem::canonical(args[1]).string() + "/" + base_path.filename().string(),
-						std::experimental::filesystem::copy_options::recursive);
-			} else {
-				std::experimental::filesystem::copy(boost::filesystem::canonical(args[0]).string(),
-						boost::filesystem::weakly_canonical(args[1]).string(),
-						std::experimental::filesystem::copy_options::recursive);
-			}
-
-			ui->set_selected(std::vector<int>{0});
-		}
-	} else if(args.size() == 1) {
+	if(args.size() == 1) {
 		std::vector<int> selected = ui->get_selected();
 		for(int i = 1; i < selected.size(); i++) {
-			copy({ui->get_main_elements()[selected[i]], args[0]}, ui);
+			std::string selected_filename = ui->get_main_elements()[selected[i]];
+
+			boost::filesystem::path base_path(boost::filesystem::canonical(selected_filename));
+
+			std::experimental::filesystem::copy(base_path.string(),
+					boost::filesystem::canonical(args[0]).string() + "/" + base_path.filename().string(),
+					std::experimental::filesystem::copy_options::recursive);
 		}
+		ui->set_selected(std::vector<int>{0});
 	} else if(args.size() == 0 && ui->get_selected().size() != 1) {
 		std::string command = "";
 		std::vector<int> selected = ui->get_selected();
@@ -461,8 +492,9 @@ void commands::paste(user_interface *ui) {
 	std::string line;
 
 	while(std::getline(stream, line, '\n')) {
-		copy({line, boost::filesystem::current_path().string()
-				+ "/" + line.substr(line.find_last_of("/") + 1, line.length())}, ui);
+		std::experimental::filesystem::copy(line, boost::filesystem::current_path().string()
+				+ "/" + line.substr(line.find_last_of("/") + 1, line.length()),
+				std::experimental::filesystem::copy_options::recursive);
 	}
 
 	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
@@ -470,21 +502,23 @@ void commands::paste(user_interface *ui) {
 
 void commands::top(user_interface *ui) {
 	if(!ui->get_main_elements().empty()) {
-		set({std::to_string(ui->get_main_elements().size())}, ui);
+		set({"1"}, ui);
 	}
 }
 
 void commands::bottom(user_interface *ui) {
 	if(!ui->get_main_elements().empty()) {
-		set({"1"}, ui);
+		set({std::to_string(ui->get_main_elements().size())}, ui);
 	}
 }
 
 void commands::shell(std::vector<std::string> args) {
 	std::string command;
-
-	for(std::string element : args) {
-		command += element + " ";
+	for(int i = 0; i < args.size(); i++) {
+		command += args[i];
+		if(i != args.size() - 1) {
+			command += " ";
+		}
 	}
 
 	system(command.c_str());
@@ -519,6 +553,7 @@ void commands::process_command(std::string command, user_interface *ui) {
 				case TOP      : top(ui); break;
 				case BOTTOM   : bottom(ui); break;
 				case SHELL    : shell(argsp); break;
+				case RENAME   : rename(argsp, ui); break;
 			}
 		}
 	}

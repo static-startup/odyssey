@@ -17,6 +17,7 @@ class commands {
 		static void move_file(std::vector<std::string> args, user_interface *ui);
 		static void begin_move(std::vector<std::string> args, user_interface *ui);
 		static void end_move(std::vector<std::string> args, user_interface *ui);
+		static void rename(std::vector<std::string> args, user_interface *ui);
 		static void remove(std::vector<std::string> args, user_interface *ui);
 		static void remove_all(std::vector<std::string> args, user_interface *ui);
 		static void touch(std::vector<std::string> args, user_interface *ui);
