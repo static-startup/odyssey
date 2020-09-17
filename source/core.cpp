@@ -325,8 +325,10 @@ class user_interface {
 
 			wattron(stdscr, A_BOLD);
 
-			mvwprintw(stdscr, 0, current_path.length(),
-					std::string("/" + main_elements[selected[0]]).c_str());
+			if(!main_elements.empty()) {
+				mvwprintw(stdscr, 0, current_path.length(),
+						std::string("/" + main_elements[selected[0]]).c_str());
+			}
 
 			wattroff(stdscr, A_BOLD);
 		}
@@ -457,13 +459,17 @@ class user_interface {
 		}
 
 		void load_file_info() {
-			std::string selected_filename = main_elements[selected[0]];
+			std::string selected_filename;
+			if(!main_elements.empty()) {
+				selected_filename = main_elements[selected[0]];
+			}
+
 			file_info = "";
 
 			struct stat info;
 			stat(selected_filename.c_str(), &info);
 
-			if(boost::filesystem::exists(selected_filename)) {
+			if(!main_elements.empty() && boost::filesystem::exists(selected_filename)) {
 				if(std::string(get_current_directory_size() + " sum, ").length() > COLS) {
 					return;
 				}
@@ -564,9 +570,7 @@ class user_interface {
 		void loop() {
 			boost::filesystem::current_path(starting_directory);
 			commands::load({"main"}, this);
-			if(!main_elements.empty()) {
-				commands::load({"preview"}, this);
-			}
+			commands::load({"preview"}, this);
 
 			while(true) {
 				clear_screen();
