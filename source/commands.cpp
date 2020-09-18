@@ -414,7 +414,7 @@ void commands::remove(std::vector<std::string> args, user_interface *ui) {
 	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
-void commands::touch(std::vector<std::string> args, user_interface *ui) {
+std::string commands::touch(std::vector<std::string> args, user_interface *ui) {
 	std::string filename = "";
 	for(int i = 0; i < args.size(); i++) {
 		filename += args[i];
@@ -423,11 +423,20 @@ void commands::touch(std::vector<std::string> args, user_interface *ui) {
 		}
 	}
 
-	if(!boost::filesystem::exists(filename)) {
-		system(std::string("vim \"" + boost::filesystem::weakly_canonical(filename).string() + "\"").c_str());
+	boost::filesystem::path filename_object(boost::filesystem::weakly_canonical(filename));
+
+	while(true) {
+		if(!boost::filesystem::exists(filename_object.string())) {
+			std::ofstream write(filename_object.string());
+			write.close();
+			break;
+		} else {
+			filename_object = boost::filesystem::path(filename_object.string() + "_");
+		}
 	}
 
 	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
+	return filename_object.string();
 }
 
 void commands::select(std::vector<std::string> args, user_interface *ui) {
@@ -544,7 +553,6 @@ void commands::shell(std::vector<std::string> args) {
 			command += " ";
 		}
 	}
-
 	system(command.c_str());
 }
 

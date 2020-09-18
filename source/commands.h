@@ -20,7 +20,7 @@ class commands {
 		static void rename(std::vector<std::string> args, user_interface *ui);
 		static void remove(std::vector<std::string> args, user_interface *ui);
 		static void remove_all(std::vector<std::string> args, user_interface *ui);
-		static void touch(std::vector<std::string> args, user_interface *ui);
+		static std::string touch(std::vector<std::string> args, user_interface *ui);
 		static void select(std::vector<std::string> args, user_interface *ui);
 		static void copy(std::vector<std::string> args, user_interface *ui);
 		static void copy_all(std::vector<std::string> args, user_interface *ui);
