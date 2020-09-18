@@ -261,7 +261,7 @@ void commands::hidden(user_interface *ui) {
 	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
-void commands::mkdir(std::vector<std::string> args, user_interface *ui) {
+std::string commands::mkdir(std::vector<std::string> args, user_interface *ui) {
 	std::string filename = "";
 	for(int i = 0; i < args.size(); i++) {
 		filename += args[i];
@@ -270,12 +270,19 @@ void commands::mkdir(std::vector<std::string> args, user_interface *ui) {
 		}
 	}
 
-	if(!boost::filesystem::exists(filename)) {
-		boost::filesystem::create_directory(
-				boost::filesystem::weakly_canonical(filename));
+	boost::filesystem::path filename_object(boost::filesystem::weakly_canonical(filename));
+
+	while(true) {
+		if(!boost::filesystem::exists(filename_object.string())) {
+			boost::filesystem::create_directory(filename_object.string());
+			break;
+		} else {
+			filename_object = boost::filesystem::path(filename_object.string() + "_");
+		}
 	}
 
 	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
+	return filename_object.string();
 }
 
 void commands::open(std::vector<std::string> args, user_interface *ui) {
@@ -541,6 +548,21 @@ void commands::shell(std::vector<std::string> args) {
 	system(command.c_str());
 }
 
+void commands::extract(std::vector<std::string> args, user_interface *ui) {
+	if(args.size() == 0) {
+		boost::filesystem::path selected_filename(ui->get_main_elements()[ui->get_selected()[0]]);
+
+		if(selected_filename.extension().string() == ".bz2"
+		|| selected_filename.extension().string() == ".gz"
+		|| selected_filename.extension().string() == ".tar") {
+
+			std::string folder_name = mkdir({selected_filename.stem().string()}, ui);
+			system(std::string("tar -xf " + selected_filename.string() + " -C " + folder_name).c_str());
+		}
+	}
+	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
+}
+
 void commands::process_command(std::string command, user_interface *ui) {
 	std::vector<std::string> args = ui->split_into_args(command);
 	std::vector<std::string> argsp = std::vector<std::string>(args.begin() + 1, args.end());
@@ -548,29 +570,30 @@ void commands::process_command(std::string command, user_interface *ui) {
 	for(int i = 0; i < command_map.size(); i++) {
 		if(command_map[i].name == args[0]) {
 			switch(command_map[i].command) {
-				case QUIT     : quit(argsp); break;
-				case DOWN     : down(ui); break;
-				case UP       : up(ui); break;
-				case LOAD     : load(argsp, ui); break;
-				case GET      : get(argsp, ui); break;
-				case CD       : cd(argsp, ui); break;
-				case SET      : set(argsp, ui); break;
-				case HIDDEN   : hidden(ui); break;
-				case MKDIR    : mkdir(argsp, ui); break;
-				case OPEN     : open(argsp, ui); break;
-				case MOVE     : move_file(argsp, ui); break;
-				case BMOVE    : begin_move(argsp, ui); break;
-				case EMOVE    : end_move(argsp, ui); break;
-				case REMOVE   : remove(argsp, ui); break;
-				case TOUCH    : touch(argsp, ui); break;
-				case SELECT   : select(argsp, ui); break;
-				case COPY     : copy(argsp, ui); break;
-				case COPYDIR  : copy_directory(); break;
-				case PASTE    : paste(ui); break;
-				case TOP      : top(ui); break;
-				case BOTTOM   : bottom(ui); break;
-				case SHELL    : shell(argsp); break;
-				case RENAME   : rename(argsp, ui); break;
+				case QUIT : quit(argsp); break;
+				case DOWN : down(ui); break;
+				case UP : up(ui); break;
+				case LOAD : load(argsp, ui); break;
+				case GET : get(argsp, ui); break;
+				case CD : cd(argsp, ui); break;
+				case SET : set(argsp, ui); break;
+				case HIDDEN : hidden(ui); break;
+				case MKDIR : mkdir(argsp, ui); break;
+				case OPEN : open(argsp, ui); break;
+				case MOVE : move_file(argsp, ui); break;
+				case BMOVE : begin_move(argsp, ui); break;
+				case EMOVE : end_move(argsp, ui); break;
+				case REMOVE : remove(argsp, ui); break;
+				case TOUCH : touch(argsp, ui); break;
+				case SELECT : select(argsp, ui); break;
+				case COPY : copy(argsp, ui); break;
+				case COPYDIR : copy_directory(); break;
+				case PASTE : paste(ui); break;
+				case TOP : top(ui); break;
+				case BOTTOM : bottom(ui); break;
+				case SHELL : shell(argsp); break;
+				case RENAME : rename(argsp, ui); break;
+				case EXTRACT : extract(argsp, ui); break;
 			}
 		}
 	}

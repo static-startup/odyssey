@@ -1,4 +1,4 @@
-#include <boost/algorithm/string.hpp>
+# include <boost/algorithm/string.hpp>
 # include <experimental/filesystem>
 # include <boost/filesystem.hpp>
 # include <sys/stat.h>
@@ -52,6 +52,7 @@ enum action {
 	BOTTOM,
 	SHELL,
 	RENAME,
+	EXTRACT,
 };
 
 struct colors {

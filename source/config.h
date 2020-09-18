@@ -48,6 +48,7 @@ static const std::vector<command> command_map = {
 	{ "top",        TOP },
 	{ "bottom",     BOTTOM },
 	{ "sh",         SHELL },
+	{ "extract",    EXTRACT },
 };
 
 /* map a key to a command */

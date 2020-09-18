@@ -12,7 +12,7 @@ class commands {
 		static void get(std::vector<std::string> args, user_interface *ui);
 		static void hidden(user_interface *ui);
 		static void cd(std::vector<std::string> args, user_interface *ui);
-		static void mkdir(std::vector<std::string> args, user_interface *ui);
+		static std::string mkdir(std::vector<std::string> args, user_interface *ui);
 		static void open(std::vector<std::string> args, user_interface *ui);
 		static void move_file(std::vector<std::string> args, user_interface *ui);
 		static void begin_move(std::vector<std::string> args, user_interface *ui);
@@ -29,6 +29,7 @@ class commands {
 		static void top(user_interface *ui);
 		static void bottom(user_interface *ui);
 		static void shell(std::vector<std::string> args);
+		static void extract(std::vector<std::string> args, user_interface *ui);
 		static void process_command(std::string command, user_interface *ui);
 };
 
