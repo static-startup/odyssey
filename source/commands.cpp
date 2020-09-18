@@ -174,8 +174,6 @@ void commands::load(std::vector<std::string> args, user_interface *ui) {
 		ui->set_preview_elements(elements);
 		ui->set_preview_sizes(sizes);
 	}
-
-	ui->load_file_info();
 }
 
 void commands::cd(std::vector<std::string> args, user_interface *ui) {
@@ -261,7 +259,7 @@ void commands::hidden(user_interface *ui) {
 	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
-std::string commands::mkdir(std::vector<std::string> args, user_interface *ui) {
+void commands::mkdir(std::vector<std::string> args, user_interface *ui) {
 	std::string filename = "";
 	for(int i = 0; i < args.size(); i++) {
 		filename += args[i];
@@ -270,19 +268,11 @@ std::string commands::mkdir(std::vector<std::string> args, user_interface *ui) {
 		}
 	}
 
-	boost::filesystem::path filename_object(boost::filesystem::weakly_canonical(filename));
-
-	while(true) {
-		if(!boost::filesystem::exists(filename_object.string())) {
-			boost::filesystem::create_directory(filename_object.string());
-			break;
-		} else {
-			filename_object = boost::filesystem::path(filename_object.string() + "_");
-		}
+	if(!boost::filesystem::exists(filename)) {
+		boost::filesystem::create_directory(filename);
 	}
 
 	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
-	return filename_object.string();
 }
 
 void commands::open(std::vector<std::string> args, user_interface *ui) {
@@ -414,7 +404,7 @@ void commands::remove(std::vector<std::string> args, user_interface *ui) {
 	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
-std::string commands::touch(std::vector<std::string> args, user_interface *ui) {
+void commands::touch(std::vector<std::string> args, user_interface *ui) {
 	std::string filename = "";
 	for(int i = 0; i < args.size(); i++) {
 		filename += args[i];
@@ -422,21 +412,13 @@ std::string commands::touch(std::vector<std::string> args, user_interface *ui) {
 			filename += " ";
 		}
 	}
-
-	boost::filesystem::path filename_object(boost::filesystem::weakly_canonical(filename));
-
-	while(true) {
-		if(!boost::filesystem::exists(filename_object.string())) {
-			std::ofstream write(filename_object.string());
-			write.close();
-			break;
-		} else {
-			filename_object = boost::filesystem::path(filename_object.string() + "_");
-		}
+	
+	if(!boost::filesystem::exists(filename)) {
+		std::ofstream write(filename);
+		write.close();
 	}
 
 	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
-	return filename_object.string();
 }
 
 void commands::select(std::vector<std::string> args, user_interface *ui) {
@@ -564,8 +546,27 @@ void commands::extract(std::vector<std::string> args, user_interface *ui) {
 		|| selected_filename.extension().string() == ".gz"
 		|| selected_filename.extension().string() == ".tar") {
 
-			std::string folder_name = mkdir({selected_filename.stem().string()}, ui);
-			system(std::string("tar -xf " + selected_filename.string() + " -C " + folder_name).c_str());
+			if(!boost::filesystem::exists(selected_filename.stem().string())) {
+				mkdir({selected_filename.stem().string()}, ui);
+				system(std::string("tar -xf " + selected_filename.string() + " -C " + selected_filename.stem().string()).c_str());
+			}
+		}
+	}
+	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
+}
+
+void commands::compress(std::vector<std::string> args, user_interface *ui) {
+	if(args.size() == 1) {
+		std::vector<int> selected = ui->get_selected();
+		std::string elements = "";
+		for(int i = 1; i < selected.size(); i++) {
+			elements += ui->get_main_elements()[selected[i]] + " ";
+		}
+
+		if(!boost::filesystem::exists(args[0])) {
+			if(boost::filesystem::path(args[0]).extension().string() == ".gz") {
+				system(std::string("tar -czf " + args[0] + " " + elements).c_str());
+			}
 		}
 	}
 	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
@@ -574,6 +575,7 @@ void commands::extract(std::vector<std::string> args, user_interface *ui) {
 void commands::process_command(std::string command, user_interface *ui) {
 	std::vector<std::string> args = ui->split_into_args(command);
 	std::vector<std::string> argsp = std::vector<std::string>(args.begin() + 1, args.end());
+	bool executed = false;
 
 	for(int i = 0; i < command_map.size(); i++) {
 		if(command_map[i].name == args[0]) {
@@ -602,7 +604,13 @@ void commands::process_command(std::string command, user_interface *ui) {
 				case SHELL : shell(argsp); break;
 				case RENAME : rename(argsp, ui); break;
 				case EXTRACT : extract(argsp, ui); break;
+				case COMPRESS : compress(argsp, ui); break;
 			}
+			executed = true;
+		}
+
+		if(i == command_map.size() - 1 && !executed) {
+			ui->set_error_message("Command \"" + args[0] + "\"" + " not found.");
 		}
 	}
 

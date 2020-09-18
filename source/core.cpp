@@ -53,6 +53,7 @@ enum action {
 	SHELL,
 	RENAME,
 	EXTRACT,
+	COMPRESS,
 };
 
 struct colors {
@@ -101,6 +102,7 @@ class user_interface {
 		std::vector<int> selected = { 0 };
 
 		std::string file_info = "";
+		bool error_message = false;
 
 		int scroll = 0;
 
@@ -154,7 +156,14 @@ class user_interface {
 				draw_window_borders();
 			}
 
+			if(error_message) {
+				wattron(stdscr, COLOR_PAIR(9));
+			}
+
 			mvwprintw(stdscr, LINES - 1, 0, file_info.c_str());
+			wattroff(stdscr, COLOR_PAIR(9));
+
+			error_message = false;
 
 			draw_current_directory();
 			draw_elements(main_elements, main_sizes, main_window, true);
@@ -459,6 +468,11 @@ class user_interface {
 			file_history = file_history_;
 		}
 
+		void set_error_message(std::string error_message_) {
+			file_info = error_message_;
+			error_message = true;
+		}
+
 		void load_file_info() {
 			std::string selected_filename;
 			if(!main_elements.empty()) {
@@ -572,6 +586,7 @@ class user_interface {
 			boost::filesystem::current_path(starting_directory);
 			commands::load({"main"}, this);
 			commands::load({"preview"}, this);
+			load_file_info();
 
 			while(true) {
 				clear_screen();
@@ -630,6 +645,7 @@ class user_interface {
 			selected = selected_;
 			bound_selected();
 			commands::load({"preview"}, this);
+			load_file_info();
 		}
 		
 		void set_main_elements(std::vector<std::string> main_elements_) {
@@ -657,6 +673,7 @@ class user_interface {
 			}
 
 			commands::load({"preview"}, this);
+			load_file_info();
 		}
 
 		void clear_windows() {

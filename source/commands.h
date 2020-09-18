@@ -12,7 +12,7 @@ class commands {
 		static void get(std::vector<std::string> args, user_interface *ui);
 		static void hidden(user_interface *ui);
 		static void cd(std::vector<std::string> args, user_interface *ui);
-		static std::string mkdir(std::vector<std::string> args, user_interface *ui);
+		static void mkdir(std::vector<std::string> args, user_interface *ui);
 		static void open(std::vector<std::string> args, user_interface *ui);
 		static void move_file(std::vector<std::string> args, user_interface *ui);
 		static void begin_move(std::vector<std::string> args, user_interface *ui);
@@ -20,7 +20,7 @@ class commands {
 		static void rename(std::vector<std::string> args, user_interface *ui);
 		static void remove(std::vector<std::string> args, user_interface *ui);
 		static void remove_all(std::vector<std::string> args, user_interface *ui);
-		static std::string touch(std::vector<std::string> args, user_interface *ui);
+		static void touch(std::vector<std::string> args, user_interface *ui);
 		static void select(std::vector<std::string> args, user_interface *ui);
 		static void copy(std::vector<std::string> args, user_interface *ui);
 		static void copy_all(std::vector<std::string> args, user_interface *ui);
@@ -30,6 +30,7 @@ class commands {
 		static void bottom(user_interface *ui);
 		static void shell(std::vector<std::string> args);
 		static void extract(std::vector<std::string> args, user_interface *ui);
+		static void compress(std::vector<std::string> args, user_interface *ui);
 		static void process_command(std::string command, user_interface *ui);
 };
 
