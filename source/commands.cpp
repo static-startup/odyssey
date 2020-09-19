@@ -182,8 +182,6 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 		current_directory = boost::filesystem::canonical(ui->get_main_elements()[ui->get_selected()[0]]).string();
 	}
 
-	ui->set_selected(std::vector<int>{ 0 });
-
 	if(args.size() == 0) {
 		if(!ui->get_main_elements().empty()) {
 			cd({ui->get_main_elements()[ui->get_selected()[0]]}, ui);
@@ -199,6 +197,8 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 
 		if(boost::filesystem::exists(directory)
 		&& boost::filesystem::is_directory(directory)) {
+
+			ui->set_selected(std::vector<int>{ 0 });
 
 			std::string oldpath = boost::filesystem::current_path().string();
 			std::string newpath = boost::filesystem::canonical(directory).string();
@@ -248,15 +248,19 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 					}
 				}
 			}
+		} else {
+			if(!boost::filesystem::exists(directory)) {
+				ui->set_error_message("Invalid directory \"" + directory + "\" (No such file or directory)");
+			} else {
+				ui->set_error_message("Invalid directory \"" + directory + "\" (Not a directory)");
+			}
 		}
 	}
-
-	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::hidden(user_interface *ui) {
 	show_hidden = !show_hidden;
-	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
+	ui->set_selected(std::vector<int>{ 0 });
 }
 
 void commands::mkdir(std::vector<std::string> args, user_interface *ui) {
