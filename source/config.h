@@ -12,7 +12,7 @@ static constexpr int free_size_precision = 1;
 static constexpr int selected_space_size = 2;
 
 /* specify the directory on launch */
-static const std::string starting_directory = "/home/";
+static const std::string starting_directory = "/home";
 
 /* show hidden files or not */
 static bool show_hidden = false;
@@ -68,7 +68,7 @@ std::vector<event> event_map = {
 	{ 't',   -1,      "get 6 touch " },
 	{ 'G',   -1,      "bottom" },
 	{ 'g',   'g',     "top" },
-	{ 'g',   'h',     "cd /home/" },
+	{ 'g',   'h',     "cd /home" },
 };
 
 /* map file type to color */

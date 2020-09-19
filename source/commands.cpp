@@ -185,6 +185,8 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 	if(args.size() == 0) {
 		if(!ui->get_main_elements().empty()) {
 			cd({ui->get_main_elements()[ui->get_selected()[0]]}, ui);
+		} else {
+			ui->set_error_message("In empty directory");
 		}
 	} else {
 		std::string directory = "";
@@ -274,14 +276,23 @@ void commands::mkdir(std::vector<std::string> args, user_interface *ui) {
 
 	if(!boost::filesystem::exists(filename)) {
 		boost::filesystem::create_directory(filename);
+		ui->set_selected(std::vector<int>{ui->get_selected()[0]});
+	} else { 
+		if(boost::filesystem::is_directory(filename)) {
+			ui->set_error_message("Cannot create directory \"" + filename + "\" (Directory exists)");
+		} else {
+			ui->set_error_message("Cannot create directory \"" + filename + "\" (File exists)");
+		}
 	}
-
-	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::open(std::vector<std::string> args, user_interface *ui) {
-	if(args.size() == 0 && !ui->get_main_elements().empty()) {
-		open({ui->get_main_elements()[ui->get_selected()[0]]}, ui);
+	if(args.size() == 0) {
+		if(!ui->get_main_elements().empty()) {
+			open({ui->get_main_elements()[ui->get_selected()[0]]}, ui);
+		} else {
+			ui->set_error_message("In empty directory");
+		}
 	} else if(!ui->get_main_elements().empty()) {
 		std::string filename = "";
 		for(int i = 0; i < args.size(); i++) {
@@ -308,27 +319,41 @@ void commands::open(std::vector<std::string> args, user_interface *ui) {
 				}
 
 				system(std::string("vim \"" + current_arg.string() + "\"").c_str());
+				ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 			}
+		} else {
+			ui->set_error_message("Invalid Directory \"" + filename + "\" (No such file or directory)");
 		}
 	}
-
-	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::move_file(std::vector<std::string> args, user_interface *ui) {
 	if(args.size() == 0) {
-		if(ui->get_selected().size() != 1) {
-			std::vector<int> selected = ui->get_selected();
-			std::string selected_filename = ui->get_main_elements()[selected[0]];
+		std::vector<int> selected = ui->get_selected();
+		std::string selected_filename = ui->get_main_elements()[selected[0]];
 
+		if(ui->get_selected().size() != 1) {
 			if(boost::filesystem::exists(selected_filename)
 			&& boost::filesystem::is_directory(selected_filename)) {
+				for(int i = 1; i < selected.size(); i++) {
+					if(ui->get_main_elements()[selected[i]] == selected_filename) {
+						ui->set_error_message("Cannot move \"" + ui->get_main_elements()[selected[i]] + "\" to a subdirectory of itself");
+						return;
+					}
+				}
 
 				for(int i = 1; i < selected.size(); i++) {
-					boost::filesystem::rename(ui->get_main_elements()[selected[i]],
-							selected_filename + ui->get_main_elements()[selected[i]]);
+					if(ui->get_main_elements()[selected[i]] != selected_filename) {
+						boost::filesystem::rename(ui->get_main_elements()[selected[i]],
+								selected_filename + ui->get_main_elements()[selected[i]]);
+					}
 				}
+				ui->set_selected(std::vector<int>{ui->get_selected()[0]});
+			} else {
+				ui->set_error_message("Cannot move \"" + selected_filename + "\" (Not a directory)");
 			}
+		} else {
+			ui->set_error_message("No selected elements");
 		}
 	} else {
 		std::string filename = "";
@@ -339,19 +364,36 @@ void commands::move_file(std::vector<std::string> args, user_interface *ui) {
 			}
 		}
 
+		if(filename == "") {
+			ui->set_error_message("No filename");
+			return;
+		}
+
 		if(boost::filesystem::exists(filename)
 		&& boost::filesystem::is_directory(filename)) {
 			
 			std::vector<int> selected = ui->get_selected();
 			for(int i = 1; i < selected.size(); i++) {
+				if(boost::filesystem::canonical(ui->get_main_elements()[selected[i]]).string()
+				== boost::filesystem::canonical(filename).string()) {
+
+					ui->set_error_message("Cannot move \"" + ui->get_main_elements()[selected[i]] + "\" to a subdirectory of itself");
+					return;
+				}
+			}
+
+			for(int i = 1; i < selected.size(); i++) {
 				std::string selected_filename = ui->get_main_elements()[selected[i]];
 
-				boost::filesystem::path base_path(selected_filename);
+				boost::filesystem::path base_path(boost::filesystem::canonical(selected_filename));
 				std::string target_path = boost::filesystem::canonical(filename).string()
 					+ "/" + base_path.filename().string();
 
-				if(!boost::filesystem::exists(target_path)) {
+				if(!boost::filesystem::exists(target_path)
+				&& boost::filesystem::canonical(selected_filename).string() != boost::filesystem::canonical(filename).string()) {
+
 					boost::filesystem::rename(base_path, target_path);
+					ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 				}
 			}
 		} else if(!boost::filesystem::exists(filename)) {
@@ -360,8 +402,6 @@ void commands::move_file(std::vector<std::string> args, user_interface *ui) {
 					boost::filesystem::weakly_canonical(filename));
 		}
 	}
-
-	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::rename(std::vector<std::string> args, user_interface *ui) {
@@ -372,18 +412,20 @@ void commands::rename(std::vector<std::string> args, user_interface *ui) {
 }
 
 void commands::begin_move(std::vector<std::string> args, user_interface *ui) {
-	get({"4", args[0], "mv \"", ui->get_main_elements()[ui->get_selected()[0]], "\""}, ui);
+	get({"3", "mv", ui->get_main_elements()[ui->get_selected()[0]]}, ui);
 }
 
 void commands::end_move(std::vector<std::string> args, user_interface *ui) {
 	boost::filesystem::path selected_filename(
 				ui->get_main_elements()[ui->get_selected()[0]]);
 
-	int begin_at = 4 + (selected_filename.string().length() -
+	int begin_at = 3 + (selected_filename.string().length() -
 			selected_filename.extension().string().length());
 
-	get({std::to_string(begin_at + 1), "mv \"", selected_filename.string(), "\""}, ui);
+	get({std::to_string(begin_at), "mv", selected_filename.string()}, ui);
 }
+
+// DONEDONEDONEDONEDONEjaksfj asdkl fsdlaj fasl;dfj asdl; fjasdl asdfj askld sdafj asdlf jasdflasjdkl sadjfklsd fjsdla fsdk fjskld fsf
 
 void commands::remove(std::vector<std::string> args, user_interface *ui) {
 	if(args.size() == 0) {
@@ -613,11 +655,12 @@ void commands::process_command(std::string command, user_interface *ui) {
 			executed = true;
 		}
 
-		if(i == command_map.size() - 1 && !executed) {
+		if(i == command_map.size() - 1 && !executed && args[0] != "") {
 			ui->set_error_message("Command \"" + args[0] + "\"" + " not found.");
 		}
 	}
 
 	load({"main"}, ui);
+	load({"preview"}, ui);
 	ui->bound_selected();
 }
