@@ -17,12 +17,6 @@ static const std::string starting_directory = "/home/static-startup";
 /* show hidden files or not */
 static bool show_hidden = false;
 
-/* use terminal set colors (supports transparency) */
-static constexpr bool use_terminal_colors = true;
-
-/* color terminal or not */
-static constexpr bool color_terminal = true;
-
 /* map a name to a command */
 static const std::vector<command> command_map = {
 	{ "q",          QUIT },

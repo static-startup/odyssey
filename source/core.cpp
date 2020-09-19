@@ -6,6 +6,7 @@
 # include <ncurses.h>
 # include <iostream>
 # include <stdlib.h>
+# include <locale.h>
 # include <iomanip>
 # include <sstream>
 # include <fstream>
@@ -215,9 +216,7 @@ class user_interface {
 					empty_window = preview_window;
 				}
 
-				if(color_terminal) {
-					wattron(empty_window, COLOR_PAIR(9));
-				}
+				wattron(empty_window, COLOR_PAIR(9));
 				mvwprintw(empty_window, 0, 0, "EMPTY");
 				wattroff(empty_window, COLOR_PAIR(9));
 			}
@@ -417,12 +416,10 @@ class user_interface {
 						draw_x = selected_space_size;
 					}
 
-					if(color_terminal) {
-						if(main_window) {
-							handle_colors(elements[i]);
-						} else {
-							handle_colors(main_elements[selected[0]] + "/" + elements[i]);
-						}
+					if(main_window) {
+						handle_colors(elements[i]);
+					} else {
+						handle_colors(main_elements[selected[0]] + "/" + elements[i]);
 					}
 
 					std::string size = sizes[index];
@@ -595,15 +592,12 @@ class user_interface {
 		}
 
 		void init_colors() {
-			if(!has_colors() && color_terminal) {
+			if(!has_colors()) {
 				commands::quit({"your terminal does not support color"});
 			}
 
 			start_color();
-
-			if(use_terminal_colors) {
-				use_default_colors();
-			}
+			use_default_colors();
 
 			init_pair(1, 0, -1);
 			init_pair(2, 1, -1);
@@ -617,6 +611,9 @@ class user_interface {
 		}
 
 		void init_ncurses() {
+			if(!setlocale(LC_ALL, "")) {
+				std::cout << "warning: no locale\n";
+			}
 			initscr();
 			cbreak();
 			noecho();
