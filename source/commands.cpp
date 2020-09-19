@@ -262,7 +262,7 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 
 void commands::hidden(user_interface *ui) {
 	show_hidden = !show_hidden;
-	ui->set_selected(std::vector<int>{ 0 });
+	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::mkdir(std::vector<std::string> args, user_interface *ui) {
@@ -446,10 +446,12 @@ void commands::remove(std::vector<std::string> args, user_interface *ui) {
 
 		if(boost::filesystem::exists(filename)) {
 			boost::filesystem::remove_all(boost::filesystem::canonical(filename));
-			ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 		} else {
 			ui->set_error_message("Cannot remove \"" + filename + "\" (No such file or directory)");
+			return;
 		}
+
+		ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 	}
 }
 
@@ -474,8 +476,6 @@ void commands::touch(std::vector<std::string> args, user_interface *ui) {
 		}
 	}
 }
-
-// DONEDONEDONEDONEDONEjaksfj asdkl fsdlaj fasl;dfj asdl; fjasdl asdfj askld sdafj asdlf jasdflasjdkl sadjfklsd fjsdla fsdk fjskld fsf
 
 void commands::select(std::vector<std::string> args, user_interface *ui) {
 	std::vector<int> selected = ui->get_selected();
@@ -510,9 +510,12 @@ void commands::copy(std::vector<std::string> args, user_interface *ui) {
 					command += "\\n";
 				}
 			}
+			ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 			command += "\" | xclip -selection clipboard";
 			command.insert(0, "echo -e \"");
 			system(command.c_str());
+		} else {
+			ui->set_error_message("Cannot copy (No selected elements)");
 		}
 	} else {
 		std::string filename;
@@ -523,27 +526,48 @@ void commands::copy(std::vector<std::string> args, user_interface *ui) {
 			}
 		}
 
+		if(filename == "") {
+			ui->set_error_message("Cannot copy (No filename)");
+			return;
+		}
+
 		if(boost::filesystem::exists(filename)
 		&& boost::filesystem::is_directory(filename)) {
 
 			std::vector<int> selected = ui->get_selected();
 			for(int i = 1; i < selected.size(); i++) {
 				std::string selected_filename = ui->get_main_elements()[selected[i]];
+				boost::filesystem::path base_path(boost::filesystem::canonical(selected_filename));
+				std::string target = boost::filesystem::canonical(filename).string() + "/" + base_path.filename().string();
 
+				if(boost::filesystem::canonical(ui->get_main_elements()[selected[i]]).string()
+				== boost::filesystem::canonical(filename).string()
+				|| boost::filesystem::exists(target)) {
+
+					if(boost::filesystem::exists(target)) {
+						ui->set_error_message("Cannot copy to \"" + target + "\" (File already exists)");
+					} else {
+						ui->set_error_message("Cannot copy \"" + ui->get_main_elements()[selected[i]] + "\" to a subdirectory of itself");
+					}
+					return;
+				}
+			}
+
+			for(int i = 1; i < selected.size(); i++) {
+				std::string selected_filename = ui->get_main_elements()[selected[i]];
 				boost::filesystem::path base_path(boost::filesystem::canonical(selected_filename));
 
 				std::experimental::filesystem::copy(base_path.string(),
-						boost::filesystem::canonical(args[0]).string() + "/" + base_path.filename().string(),
+						boost::filesystem::canonical(filename).string() + "/" + base_path.filename().string(),
 						std::experimental::filesystem::copy_options::recursive);
 			}
+			ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 		} else if(!boost::filesystem::exists(filename)) {
 			std::experimental::filesystem::copy(ui->get_main_elements()[ui->get_selected()[0]],
-					boost::filesystem::weakly_canonical(args[0]).string(),
+					boost::filesystem::weakly_canonical(filename).string(),
 					std::experimental::filesystem::copy_options::recursive);
 		}
 	}
-
-	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::paste(user_interface *ui) {
@@ -562,6 +586,18 @@ void commands::paste(user_interface *ui) {
 	std::stringstream stream(result);
 	std::string line;
 
+	while(std::getline(stream, line, '\n')) {
+		std::string target = boost::filesystem::current_path().string()
+				+ "/" + line.substr(line.find_last_of("/") + 1, line.length());
+
+		if(boost::filesystem::exists(target)) {
+			ui->set_error_message("Cannot paste \"" + target + "\" (Directory exists)");
+			return;
+		}
+	}
+
+	stream = std::stringstream(result);
+	
 	while(std::getline(stream, line, '\n')) {
 		std::experimental::filesystem::copy(line, boost::filesystem::current_path().string()
 				+ "/" + line.substr(line.find_last_of("/") + 1, line.length()),
@@ -602,29 +638,70 @@ void commands::extract(std::vector<std::string> args, user_interface *ui) {
 		|| selected_filename.extension().string() == ".gz"
 		|| selected_filename.extension().string() == ".tar") {
 
-			if(!boost::filesystem::exists(selected_filename.stem().string())) {
-				mkdir({selected_filename.stem().string()}, ui);
-				system(std::string("tar -xf " + selected_filename.string() + " -C " + selected_filename.stem().string()).c_str());
+			std::string filename = selected_filename.string();
+			if(selected_filename.extension().string() == ".bz2") {
+				filename = filename.substr(0, filename.length() - 8);
+			} else if(selected_filename.extension().string() == ".gz") {
+				filename = filename.substr(0, filename.length() - 7);
+			} else if(selected_filename.extension().string() == ".tar") {
+				filename = filename.substr(0, filename.length() - 4);
 			}
+
+			if(!boost::filesystem::exists(filename)) {
+				mkdir({filename}, ui);
+				system(std::string("tar -xf " + selected_filename.string() + " -C " + filename).c_str());
+				ui->set_selected(std::vector<int>{ui->get_selected()[0]});
+			} else {
+				ui->set_error_message("Cannot extract to \"" + filename + "\" (Directory exists)");
+			}
+		} else {
+			ui->set_error_message("Cannot extract \"" + selected_filename.string() + "\" (Not a compressed file)");
 		}
 	}
-	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::compress(std::vector<std::string> args, user_interface *ui) {
-	if(args.size() == 1) {
-		std::vector<int> selected = ui->get_selected();
-		std::string elements = "";
-		for(int i = 1; i < selected.size(); i++) {
-			elements += ui->get_main_elements()[selected[i]] + " ";
-		}
+	std::vector<int> selected = ui->get_selected();
+	std::string elements = "";
+	for(int i = 1; i < selected.size(); i++) {
+		elements += ui->get_main_elements()[selected[i]] + " ";
+	}
 
-		if(!boost::filesystem::exists(args[0])) {
-			if(boost::filesystem::path(args[0]).extension().string() == ".gz") {
-				system(std::string("tar -czf " + args[0] + " " + elements).c_str());
-			}
+	std::string filename = "";
+	for(int i = 0; i < args.size(); i++) {
+		filename += args[i];
+		if(i != args.size() - 1) {
+			filename += " ";
 		}
 	}
+
+	if(elements == "") {
+		ui->set_error_message("Cannot compress (No selected elements)");
+		return;
+	}
+
+	if(filename == "") {
+		ui->set_error_message("Cannot compress (No filename)");
+		return;
+	}
+
+	if(!boost::filesystem::exists(filename)) {
+		if(boost::filesystem::path(filename).extension().string() == ".gz") {
+			filename = ui->find_and_replace(filename, "\"", "\\\"");
+			system(std::string("tar -czf \"" + filename + "\" " + elements).c_str());
+		} else {
+			ui->set_error_message("Cannot compress (Unrecognized compression type)");
+			return;
+		}
+	} else {
+		if(boost::filesystem::is_directory(filename)) {
+			ui->set_error_message("Cannot compress \"" + filename + "\" (Directory exists)");
+		} else {
+			ui->set_error_message("Cannot compress \"" + filename + "\" (File exists)");
+		}
+		return;
+	}
+
 	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
@@ -671,6 +748,6 @@ void commands::process_command(std::string command, user_interface *ui) {
 	}
 
 	load({"main"}, ui);
-	load({"preview"}, ui);
 	ui->bound_selected();
+	load({"preview"}, ui);
 }
