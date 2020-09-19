@@ -312,12 +312,16 @@ void commands::open(std::vector<std::string> args, user_interface *ui) {
 				for(int j = 0; j < open_map.size(); j++) {
 					if(current_arg.extension().string() == open_map[j].extension) {
 						std::string command = open_map[j].command;
+						std::string filename = current_arg.string();
+						filename = ui->find_and_replace(filename, "\"", "\\\"");
 						command = ui->find_and_replace(command, "{f}", current_arg.string());
 						system(command.c_str());
 						return;
 					}
 				}
 
+				std::string filename = current_arg.string();
+				filename = ui->find_and_replace(filename, "\"", "\\\"");
 				system(std::string("vim \"" + current_arg.string() + "\"").c_str());
 				ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 			}
@@ -494,8 +498,10 @@ void commands::select(std::vector<std::string> args, user_interface *ui) {
 	ui->set_selected(selected);
 }
 
-void commands::copy_directory() {
-	system(std::string("echo \"" + boost::filesystem::current_path().string()
+void commands::copy_directory(user_interface *ui) {
+	std::string filename = boost::filesystem::current_path().string();
+	filename = ui->find_and_replace(filename, "\"", "\\\"");
+	system(std::string("echo \"" + filename
 				+ "\" | xclip -selection clipboard").c_str());
 }
 
@@ -647,9 +653,11 @@ void commands::extract(std::vector<std::string> args, user_interface *ui) {
 				filename = filename.substr(0, filename.length() - 4);
 			}
 
+			filename = ui->find_and_replace(filename, "\"", "\\\"");
+
 			if(!boost::filesystem::exists(filename)) {
 				mkdir({filename}, ui);
-				system(std::string("tar -xf " + selected_filename.string() + " -C " + filename).c_str());
+				system(std::string("tar -xf \"" + selected_filename.string() + "\" -C " + filename).c_str());
 				ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 			} else {
 				ui->set_error_message("Cannot extract to \"" + filename + "\" (Directory exists)");
@@ -730,7 +738,7 @@ void commands::process_command(std::string command, user_interface *ui) {
 				case TOUCH : touch(argsp, ui); break;
 				case SELECT : select(argsp, ui); break;
 				case COPY : copy(argsp, ui); break;
-				case COPYDIR : copy_directory(); break;
+				case COPYDIR : copy_directory(ui); break;
 				case PASTE : paste(ui); break;
 				case TOP : top(ui); break;
 				case BOTTOM : bottom(ui); break;

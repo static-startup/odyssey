@@ -24,7 +24,7 @@ class commands {
 		static void select(std::vector<std::string> args, user_interface *ui);
 		static void copy(std::vector<std::string> args, user_interface *ui);
 		static void copy_all(std::vector<std::string> args, user_interface *ui);
-		static void copy_directory();
+		static void copy_directory(user_interface *ui);
 		static void paste(user_interface *ui);
 		static void top(user_interface *ui);
 		static void bottom(user_interface *ui);
