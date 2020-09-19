@@ -691,7 +691,11 @@ class user_interface {
 		std::vector<std::string> get_filenames(std::string directory) {
 			std::vector<std::string> filenames;
 			for(const auto &entry : boost::filesystem::directory_iterator(directory)) {
-				filenames.push_back(directory);
+				std::string filename = entry.path().string();
+				filename = filename.substr(filename.find_last_of('/') + 1, filename.length());
+				if((filename[0] != '.' && !show_hidden) || (show_hidden)) {
+					filenames.push_back(entry.path().string());
+				}
 			}
 			return filenames;
 		}

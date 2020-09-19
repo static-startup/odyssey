@@ -186,7 +186,7 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 		if(!ui->get_main_elements().empty()) {
 			cd({ui->get_main_elements()[ui->get_selected()[0]]}, ui);
 		} else {
-			ui->set_error_message("In empty directory");
+			ui->set_error_message("Cannot change directory (In empty directory)");
 		}
 	} else {
 		std::string directory = "";
@@ -252,9 +252,9 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 			}
 		} else {
 			if(!boost::filesystem::exists(directory)) {
-				ui->set_error_message("Invalid directory \"" + directory + "\" (No such file or directory)");
+				ui->set_error_message("Cannot change directory \"" + directory + "\" (No such file or directory)");
 			} else {
-				ui->set_error_message("Invalid directory \"" + directory + "\" (Not a directory)");
+				ui->set_error_message("Cannot change directory \"" + directory + "\" (Not a directory)");
 			}
 		}
 	}
@@ -291,7 +291,7 @@ void commands::open(std::vector<std::string> args, user_interface *ui) {
 		if(!ui->get_main_elements().empty()) {
 			open({ui->get_main_elements()[ui->get_selected()[0]]}, ui);
 		} else {
-			ui->set_error_message("In empty directory");
+			ui->set_error_message("Cannot open (In empty directory)");
 		}
 	} else if(!ui->get_main_elements().empty()) {
 		std::string filename = "";
@@ -322,7 +322,7 @@ void commands::open(std::vector<std::string> args, user_interface *ui) {
 				ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 			}
 		} else {
-			ui->set_error_message("Invalid Directory \"" + filename + "\" (No such file or directory)");
+			ui->set_error_message("Cannot open \"" + filename + "\" (No such file or directory)");
 		}
 	}
 }
@@ -350,10 +350,10 @@ void commands::move_file(std::vector<std::string> args, user_interface *ui) {
 				}
 				ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 			} else {
-				ui->set_error_message("Cannot move \"" + selected_filename + "\" (Not a directory)");
+				ui->set_error_message("Cannot move to \"" + selected_filename + "\" (Not a directory)");
 			}
 		} else {
-			ui->set_error_message("No selected elements");
+			ui->set_error_message("Cannot move (No selected elements)");
 		}
 	} else {
 		std::string filename = "";
@@ -365,7 +365,7 @@ void commands::move_file(std::vector<std::string> args, user_interface *ui) {
 		}
 
 		if(filename == "") {
-			ui->set_error_message("No filename");
+			ui->set_error_message("Cannot move (No filename)");
 			return;
 		}
 
@@ -425,11 +425,13 @@ void commands::end_move(std::vector<std::string> args, user_interface *ui) {
 	get({std::to_string(begin_at), "mv", selected_filename.string()}, ui);
 }
 
-// DONEDONEDONEDONEDONEjaksfj asdkl fsdlaj fasl;dfj asdl; fjasdl asdfj askld sdafj asdlf jasdflasjdkl sadjfklsd fjsdla fsdk fjskld fsf
-
 void commands::remove(std::vector<std::string> args, user_interface *ui) {
 	if(args.size() == 0) {
 		std::vector<int> selected = ui->get_selected();
+		if(selected.size() == 1) {
+			ui->set_error_message("Cannot remove (No selected elements)");
+		}		
+
 		for(int i = 1; i < selected.size(); i++) {
 			remove({ui->get_main_elements()[selected[i]]}, ui);
 		}
@@ -444,10 +446,11 @@ void commands::remove(std::vector<std::string> args, user_interface *ui) {
 
 		if(boost::filesystem::exists(filename)) {
 			boost::filesystem::remove_all(boost::filesystem::canonical(filename));
+			ui->set_selected(std::vector<int>{ui->get_selected()[0]});
+		} else {
+			ui->set_error_message("Cannot remove \"" + filename + "\" (No such file or directory)");
 		}
 	}
-
-	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
 
 void commands::touch(std::vector<std::string> args, user_interface *ui) {
@@ -462,10 +465,17 @@ void commands::touch(std::vector<std::string> args, user_interface *ui) {
 	if(!boost::filesystem::exists(filename)) {
 		std::ofstream write(filename);
 		write.close();
+		ui->set_selected(std::vector<int>{ui->get_selected()[0]});
+	} else {
+		if(boost::filesystem::is_directory(filename)) {
+			ui->set_error_message("Cannot create file \"" + filename + "\" (Directory exists)");
+		} else {
+			ui->set_error_message("Cannot create file \"" + filename + "\" (File exists)");
+		}
 	}
-
-	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 }
+
+// DONEDONEDONEDONEDONEjaksfj asdkl fsdlaj fasl;dfj asdl; fjasdl asdfj askld sdafj asdlf jasdflasjdkl sadjfklsd fjsdla fsdk fjskld fsf
 
 void commands::select(std::vector<std::string> args, user_interface *ui) {
 	std::vector<int> selected = ui->get_selected();
