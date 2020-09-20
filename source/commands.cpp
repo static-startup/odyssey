@@ -218,7 +218,11 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 						if(iterator != file_history.end()) {
 							std::string filename = file_history[std::distance(file_history.begin(), iterator)];
 							filename = filename.substr(filename.find_last_of('/') + 1, filename.length());
-							ui->set_selected(filename);
+							if(boost::filesystem::exists(filename)) {
+								ui->set_selected(filename);
+							} else {
+								file_history.erase(file_history.begin() + std::distance(file_history.begin(), iterator));
+							}
 						}
 					}
 				}
