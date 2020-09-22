@@ -139,6 +139,7 @@ void commands::load(std::vector<std::string> args, user_interface *ui) {
 	} else if(args[0] == "preview") {
 		if(!ui->get_main_elements().empty()) {
 			std::string selected_filename = ui->get_main_elements()[ui->get_selected()[0]];
+
 			if(boost::filesystem::exists(selected_filename)) {
 				if(boost::filesystem::is_directory(selected_filename)) {
 					for(const auto &entry : boost::filesystem::directory_iterator(selected_filename)) {
@@ -162,17 +163,17 @@ void commands::load(std::vector<std::string> args, user_interface *ui) {
 					std::ifstream read(selected_filename);
 					std::string line;
 
-					for(int i = 0; i < 2000 && std::getline(read, line); i++) {
+					for(int i = 0; i < LINES && std::getline(read, line); i++) {
 						elements.push_back(line);
 					}
 
 					read.close();
 				}
+
+				ui->set_preview_elements(elements);
+				ui->set_preview_sizes(sizes);
 			}
 		}
-
-		ui->set_preview_elements(elements);
-		ui->set_preview_sizes(sizes);
 	}
 }
 

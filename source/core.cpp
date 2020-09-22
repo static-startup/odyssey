@@ -105,6 +105,8 @@ class user_interface {
 		std::string file_info = "";
 		bool error_message = false;
 
+		int width, height;
+
 		int scroll = 0;
 
 		unsigned long current_time() {
@@ -150,6 +152,23 @@ class user_interface {
 			}
 		}
 
+		void update() {
+			commands::load({"preview"}, this);
+
+			load_file_info();
+			mvwprintw(stdscr, LINES - 1, 0, file_info.c_str());
+			wattroff(stdscr, COLOR_PAIR(9));
+
+			error_message = false;
+
+			draw_current_directory();
+			draw_elements(main_elements, main_sizes, main_window, true);
+			draw_elements(preview_elements, preview_sizes, preview_window, false);
+			handle_empty_directory();
+			
+			refresh_windows();
+		}
+
 		void handle_frame() {
 			clear_windows();
 
@@ -161,24 +180,21 @@ class user_interface {
 				wattron(stdscr, COLOR_PAIR(9));
 			}
 
-			mvwprintw(stdscr, LINES - 1, 0, file_info.c_str());
-			wattroff(stdscr, COLOR_PAIR(9));
+			width = COLS;
+			height = LINES;
 
-			error_message = false;
-
-			draw_current_directory();
-			draw_elements(main_elements, main_sizes, main_window, true);
-			draw_elements(preview_elements, preview_sizes, preview_window, false);
-			handle_empty_directory();
-
-			refresh();
-			refresh_windows();
+			update();
 
 			int key;
 			while(key = getch()) {
 				if(key != ERR) {
 					add_key(key);
 					break;
+				}
+
+				if(width != LINES) {
+					width = LINES;
+					update();
 				}
 			}
 		}
@@ -314,7 +330,7 @@ class user_interface {
 		}
 
 		void refresh_windows() {
-			int window_height = draw_border ? LINES - 4 : LINES - 3;;
+			int window_height = draw_border ? LINES - 4 : LINES - 3;
 
 			wresize(main_window, window_height, COLS / 2 - 1);
 			wresize(preview_window, window_height, COLS / 2 - 2);
@@ -450,7 +466,7 @@ class user_interface {
 
 			scroll = selected[0] < scroll && scroll != 0 ? scroll - 1 :
 				selected[0] < main_elements.size()
-				&& selected[0] > scroll + y - 3 ? scroll + 1 : scroll;
+				&& selected[0] > scroll + y - 1 ? scroll + 1 : scroll;
 
 			selected[0] = selected[0] < 0 ? 0 :
 				selected[0] > main_elements.size() - 1 ?
