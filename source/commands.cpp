@@ -847,8 +847,6 @@ void commands::extract(std::vector<std::string> args, user_interface *ui) {
 	}
 }
 
-// sf asd fasf sadf asdf sadf 
-
 void commands::compress(std::vector<std::string> args, user_interface *ui) {
 	std::vector<int> selected = ui->get_selected();
 	std::string elements = "";
@@ -856,13 +854,7 @@ void commands::compress(std::vector<std::string> args, user_interface *ui) {
 		elements += ui->get_main_elements()[selected[i]] + " ";
 	}
 
-	std::string filename = "";
-	for(int i = 0; i < args.size(); i++) {
-		filename += args[i];
-		if(i != args.size() - 1) {
-			filename += " ";
-		}
-	}
+	std::string filename = combine_vector(args);
 
 	if(elements == "") {
 		ui->set_error_message("Cannot compress (No selected elements)");
@@ -878,6 +870,12 @@ void commands::compress(std::vector<std::string> args, user_interface *ui) {
 		if(boost::filesystem::path(filename).extension().string() == ".gz") {
 			filename = find_and_replace(filename, "\"", "\\\"");
 			system(std::string("tar -czf \"" + filename + "\" " + elements).c_str());
+		} else if(boost::filesystem::path(filename).extension().string() == ".bz2") {
+			filename = find_and_replace(filename, "\"", "\\\"");
+			system(std::string("tar -cjf \"" + filename + "\" " + elements).c_str());
+		} else if(boost::filesystem::path(filename).extension().string() == ".tar") {
+			filename = find_and_replace(filename, "\"", "\\\"");
+			system(std::string("tar -cf \"" + filename + "\" " + elements).c_str());
 		} else {
 			ui->set_error_message("Cannot compress (Unrecognized compression type)");
 			return;
