@@ -115,11 +115,14 @@ class user_interface {
 		}
 
 		void add_key(int key) {
+			// handles double keys
 			for(int i = 0; i < keys.size(); i++) {
 				for(int j = 0; j < event_map.size(); j++) {
+					// if keys matches
 					if(keys[i] == event_map[j].key
 					&& key == event_map[j].double_key) {
 
+						// check if keystroke are not too old
 						bool flag = false;
 						if(key_times[i] + 500 > current_time()) {
 							flag = true;
@@ -136,6 +139,7 @@ class user_interface {
 				}
 			}
 
+			// handles regular keys
 			for(int i = 0; i < event_map.size(); i++) {
 				if(event_map[i].key == key && event_map[i].double_key == -1) {
 					commands::process_command(event_map[i].command, this);
@@ -143,6 +147,7 @@ class user_interface {
 				}
 			}
 			
+			// if no match, try to store keys
 			for(int i = 0; i < event_map.size(); i++) {
 				if(event_map[i].key == key) {
 					keys.push_back(key);
@@ -152,10 +157,15 @@ class user_interface {
 			}
 		}
 
+		// update graphics
 		void update() {
 			commands::load({"preview"}, this);
 
-			load_file_info();
+			// draw bottom message
+			if(error_message) {
+				wattron(stdscr, COLOR_PAIR(9));
+			}
+
 			mvwprintw(stdscr, LINES - 1, 0, file_info.c_str());
 			wattroff(stdscr, COLOR_PAIR(9));
 
@@ -164,6 +174,7 @@ class user_interface {
 			draw_current_directory();
 			draw_elements(main_elements, main_sizes, main_window, true);
 			draw_elements(preview_elements, preview_sizes, preview_window, false);
+
 			handle_empty_directory();
 			
 			refresh_windows();
@@ -174,10 +185,6 @@ class user_interface {
 
 			if(draw_border) {
 				draw_window_borders();
-			}
-
-			if(error_message) {
-				wattron(stdscr, COLOR_PAIR(9));
 			}
 
 			width = COLS;
@@ -192,13 +199,15 @@ class user_interface {
 					break;
 				}
 
-				if(width != LINES) {
-					width = LINES;
+				if(width != COLS || height != LINES) {
+					width = COLS;
+					height = LINES;
 					update();
 				}
 			}
 		}
 
+		// draw 2 borders
 		void draw_window_borders() {
 			for(int i = 2; i < LINES - 2; i++) {
 				mvwaddch(stdscr, i, COLS / 2, ACS_VLINE);
@@ -219,6 +228,7 @@ class user_interface {
 			mvwaddch(stdscr, LINES - 2, COLS - 1, ACS_LRCORNER);
 		}
 
+		// draws EMPTY if directory is empty
 		void handle_empty_directory() {
 			if((main_elements.empty())
 			|| (preview_elements.empty()
@@ -238,97 +248,6 @@ class user_interface {
 			}
 		}
 
-		std::string get_file_owner(std::string directory, struct stat info) {
-			struct passwd *pw = getpwuid(info.st_uid);
-			struct group *gr = getgrgid(info.st_gid);
-			return std::string(pw->pw_name) + ":" + std::string(gr->gr_name);
-		}
-
-		std::string format_file_size(unsigned long long file_size, int precision) {
-			std::stringstream stream;
-			stream << std::fixed << std::setprecision(precision);
-
-			if(file_size < 1024) {
-				stream << file_size << "B";
-			} if(file_size >= 1024 && file_size < 1048576) {
-				stream << file_size / 1024 << "K";
-			} else if(file_size >= 1048576 && file_size < 1073741824) {
-				stream << file_size / 1024 / 1024 << "M";
-			} else if(file_size >= 1073741824 && file_size < 1099511627776) {
-				stream << file_size / 1024 / 1024 / 1024 << "G";
-			} else if(file_size >= 1099511627776) {
-				stream << file_size / 1024 / 1024 / 1024 / 1024 << "T";
-			}
-
-			return stream.str();
-		}
-
-		std::string get_current_directory_size() {
-			unsigned long long file_size = 0;
-			for(int i = 0; i < main_elements.size(); i++) {
-				if(!boost::filesystem::is_directory(main_elements[i])
-				&& boost::filesystem::exists(main_elements[i])) {
-
-					try {
-						file_size += boost::filesystem::file_size(main_elements[i]);
-					} catch(...) {
-					}
-				}
-			}
-			return format_file_size(file_size, size_precision);
-		}
-
-		std::string get_file_creation_time(std::string directory, struct stat info) {
-			struct tm *tm = gmtime(&(info.st_mtime));
-
-			std::string year = std::to_string(1900 + tm->tm_year);
-			std::string month = std::to_string(tm->tm_mon);
-			std::string day = std::to_string(tm->tm_mday);
-
-			std::string hours = std::to_string(
-					tm->tm_hour - 4 < 0 ? 24 - (tm->tm_hour - 4) * -1 : tm->tm_hour - 4);
-
-			std::string minutes = std::to_string(tm->tm_min);
-			
-			if(std::stoi(month) < 10) {
-				month.insert(0, "0");
-			} if(std::stoi(day) < 10) {
-				day.insert(0, "0");
-			} if(std::stoi(hours) < 10) {
-				hours.insert(0, "0");
-			} if(std::stoi(minutes) < 10) {
-				minutes.insert(0, "0");
-			}
-
-			return year + "-" + month + "-" + day + " " + hours + ":" + minutes;
-		}
-
-		std::string get_free_space(std::string directory) {
-			boost::filesystem::space_info disk_space = boost::filesystem::space("/");
-
-			return format_file_size(disk_space.available,
-					free_size_precision) + " free";
-		}
-
-		std::string get_file_permissions(std::string directory) {
-			boost::filesystem::perms p =
-				boost::filesystem::status(directory).permissions();
-
-			std::stringstream stream;
-
-		   	stream << ((p & 0400) != 0 ? "r" : "-")
-				   << ((p & 0200) != 0 ? "w" : "-")
-				   << ((p & 0100) != 0 ? "x" : "-")
-				   << ((p & 040)  != 0 ? "r" : "-")
-				   << ((p & 020)  != 0 ? "w" : "-")
-				   << ((p & 010)  != 0 ? "x" : "-")
-				   << ((p & 04)   != 0 ? "r" : "-")
-				   << ((p & 02)   != 0 ? "w" : "-")
-				   << ((p & 01)   != 0 ? "x" : "-");
-
-			return stream.str();
-		}
-
 		void refresh_windows() {
 			int window_height = draw_border ? LINES - 4 : LINES - 3;
 
@@ -341,6 +260,7 @@ class user_interface {
 			wrefresh(preview_window);
 		}
 
+		// draw the current directory at top
 		void draw_current_directory() {
 			std::string current_path = std::string(
 					boost::filesystem::current_path().string());
@@ -358,11 +278,7 @@ class user_interface {
 			wattroff(stdscr, A_BOLD);
 		}
 
-		void colors_on(int i) {
-			wattron(main_window, colors_map[i].color);
-			wattron(preview_window, colors_map[i].color);
-		}
-
+		// chooses color for a filename
 		void handle_colors(std::string selected_file) {
 			for(int i = 0; i < colors_map.size(); i++) {
 				boost::filesystem::path path_object(selected_file);
@@ -372,38 +288,24 @@ class user_interface {
 				&& boost::filesystem::is_directory(selected_file))
 				|| (colors_map[i].extension == "")) {
 
-					colors_on(i);
+					wattron(main_window, colors_map[i].color);
+					wattron(preview_window, colors_map[i].color);
 					return;
 				}
 			}
 		}
 
+		// turns off every color
 		void colors_off() {
-			wattroff(main_window, A_REVERSE
-					|BRIGHT
-					|BLINK
-					|COLOR_PAIR(1)
-					|COLOR_PAIR(2)
-					|COLOR_PAIR(3)
-					|COLOR_PAIR(4)
-					|COLOR_PAIR(5)
-					|COLOR_PAIR(6)
-					|COLOR_PAIR(7)
-					|COLOR_PAIR(8));
-
-			wattroff(preview_window, A_REVERSE
-					|BRIGHT
-					|BLINK
-					|COLOR_PAIR(1)
-					|COLOR_PAIR(2)
-					|COLOR_PAIR(3)
-					|COLOR_PAIR(4)
-					|COLOR_PAIR(5)
-					|COLOR_PAIR(6)
-					|COLOR_PAIR(7)
-					|COLOR_PAIR(8));
+			wattroff(main_window, A_REVERSE|BRIGHT|BLINK);
+			wattroff(preview_window, A_REVERSE|BRIGHT|BLINK);
+			for(int i = 1; i < 8; i++) {
+				wattroff(main_window, COLOR_PAIR(i));
+				wattroff(preview_window, COLOR_PAIR(i));
+			}
 		}
 
+		// thicc chunker
 		void draw_elements(std::vector<std::string> elements,
 						   std::vector<std::string> sizes,
 						   WINDOW *window,
@@ -413,7 +315,9 @@ class user_interface {
 			getmaxyx(window, y, x);
 			y -= 3;
 
+			// if main window then account for scroll
 			for(int i = 0; main_window ? i + scroll < elements.size() : i < elements.size(); i++) {
+
 				int index = main_window ? i + scroll : i;
 
 				if(main_window
@@ -422,16 +326,20 @@ class user_interface {
 
 					int draw_x = 0;
 
+					// highlight selected
 					if(main_window && selected[0] == i + scroll) {
 						wattron(window, A_REVERSE);
 					}
 
+					// tab other selected
 					if(main_window
-					&& std::find(selected.begin() + 1, selected.end(), i + scroll) != selected.end()) {
+					&& std::find(selected.begin() + 1, selected.end(), i + scroll)
+					!= selected.end()) {
 
 						draw_x = selected_space_size;
 					}
 
+					// draw colors
 					if(main_window) {
 						handle_colors(elements[i]);
 					} else {
@@ -440,18 +348,21 @@ class user_interface {
 
 					std::string size = sizes[index];
 
+					// meat
 					if(elements[index].length() + size.length() + draw_x < x) {
-						mvwprintw(window, i, draw_x, std::string(elements[index] + std::string(
-								x - elements[index].length() - size.length() - draw_x, ' ') + size).c_str());
-					} else {
 						mvwprintw(window, i, draw_x, std::string(
-								elements[index].substr(0, x - size.length() - 4 - draw_x + 2) + "~ " + size).c_str());
+								elements[index] + std::string(
+								x - elements[index].length() - size.length() - draw_x, ' ')
+							   	+ size).c_str());
+					} else {
+						mvwprintw(window, i, draw_x, std::string(elements[index].substr(
+							0, x - size.length() - 4 - draw_x + 2) + "~ " + size).c_str());
 					}
 
 					colors_off();
 				} else {
 					std::string line = elements[index];
-					line = find_and_replace(line, "%", "%%");
+					line = commands::find_and_replace(line, "%", "%%");
 					mvwprintw(window, i, 0, line.c_str());
 				}
 			}
@@ -486,6 +397,7 @@ class user_interface {
 			error_message = true;
 		}
 
+		// thicc chunker
 		void load_file_info() {
 			std::string selected_filename;
 			if(!main_elements.empty()) {
@@ -494,107 +406,78 @@ class user_interface {
 
 			file_info = "";
 
-			struct stat info;
-			stat(selected_filename.c_str(), &info);
-
 			if(!main_elements.empty() && boost::filesystem::exists(selected_filename)) {
-				if(std::string(get_current_directory_size() + " sum, ").length() > COLS) {
+				std::string file_sizes = commands::format_file_size(commands::file_sizes(
+							boost::filesystem::current_path().string()), size_precision) + " sum, ";
+
+				if(file_sizes.length() > COLS) {
 					return;
 				}
 
-				std::string right_info = get_current_directory_size() + " sum, ";
+				std::string right_info = file_sizes;
+				std::string free_space = commands::format_file_size(
+						commands::free_space(selected_filename), size_precision) + " free, ";
 
-				if(right_info.length()
-				+ get_free_space(selected_filename).length() + 1 > COLS) {
-					
+				if(right_info.length() + free_space.length() > COLS) {
 					file_info = right_info;
 					return;
 				}
 
-				right_info += get_free_space(selected_filename) + " ";
+				right_info += free_space;
+				std::string position = std::to_string(selected[0] + 1) + "/" + std::to_string(main_elements.size());
 
-				if(right_info.length()
-				+ std::string(std::to_string(selected[0] + 1) + "/"
-				+ std::to_string(main_elements.size())).length() + 1 > COLS) {
-					
+				if(right_info.length() + position.length() > COLS) {
 					file_info = right_info;
 					return;
 				}
 
-				right_info += std::to_string(selected[0] + 1) + "/"
-					+ std::to_string(main_elements.size());
+				right_info += position;
+				std::string permissions = commands::file_permissions(selected_filename) + " ";
 
-				if(file_info.length()
-				+ right_info.length()
-				+ get_file_permissions(selected_filename).length() + 1 > COLS) {
-
-					file_info += std::string(COLS - file_info.length() - right_info.length(), ' ')
-						+ right_info;
+				if(right_info.length() + permissions.length() > COLS) {
+					file_info += std::string(COLS - file_info.length() - right_info.length(), ' ') + right_info;
 					return;
 				}
 
-				file_info += get_file_permissions(selected_filename) + " ";
+				file_info += permissions;
+				std::string owner = commands::file_owner(selected_filename) + " ";
 
-				if(file_info.length()
-				+ right_info.length()
-				+ get_file_owner(selected_filename, info).length() + 1 > COLS) {
-
-					file_info += std::string(COLS - file_info.length() - right_info.length(), ' ')
-						+ right_info;
+				if(file_info.length() + right_info.length() + owner.length() > COLS) {
+					file_info += std::string(COLS - file_info.length() - right_info.length(), ' ') + right_info;
 					return;
 				}
 
-				file_info += get_file_owner(selected_filename, info) + " ";
+				file_info += owner;
 
 				if(!boost::filesystem::is_directory(selected_filename)) {
-					if(file_info.length()
-					+ right_info.length()
-					+ get_file_size(selected_filename).length() + 1 > COLS) {
+					std::string file_size = commands::format_file_size(commands::file_size(selected_filename), size_precision) + " ";
 
-						file_info += std::string(COLS - file_info.length() - right_info.length(), ' ')
-							+ right_info;
+					if(file_info.length() + right_info.length() + file_size.length() > COLS) {
+						file_info += std::string(COLS - file_info.length() - right_info.length(), ' ') + right_info;
 						return;
 					}
 
-					file_info += get_file_size(selected_filename) + " ";
+					file_info += file_size;
 				}
 
-				if(file_info.length()
-				+ right_info.length()
-				+ get_file_creation_time(selected_filename, info).length() + 1 > COLS) {
+				std::string mod_time = commands::file_last_mod_time(selected_filename) + " ";
 
-					file_info += std::string(COLS - file_info.length() - right_info.length(), ' ')
-						+ right_info;
+				if(file_info.length() + right_info.length() + mod_time.length() > COLS) {
+					file_info += std::string(COLS - file_info.length() - right_info.length(), ' ') + right_info;
 					return;
 				}
 				
-				file_info += get_file_creation_time(selected_filename, info);
-				file_info += std::string(COLS - file_info.length() - right_info.length(), ' ')
-					+ right_info;
+				file_info += mod_time;
+				file_info += std::string(COLS - file_info.length() - right_info.length(), ' ') + right_info;
 			}
 		}
 
-		std::string find_and_replace(std::string str, std::string search, std::string replace) {
-			int pos = str.find(search);
-			while(pos != std::string::npos) {
-				str.replace(pos, search.length(), replace);
-				pos = str.find(search, pos + replace.length());
-			}
-			return str;
+
+		void set_message(std::string message_) {
+			file_info = message_;
 		}
 
-		std::string get_file_size(std::string directory) {
-			if(boost::filesystem::exists(directory)) {
-				try {
-					return format_file_size(boost::filesystem::file_size(directory),
-							size_precision);
-				} catch(...) {
-				}
-			}
-
-			return "N/A";
-		}
-
+		// main loop
 		void loop() {
 			boost::filesystem::current_path(starting_directory);
 			commands::load({"main"}, this);
@@ -607,6 +490,7 @@ class user_interface {
 			}
 		}
 
+		// init all colors
 		void init_colors() {
 			if(!has_colors()) {
 				commands::quit({"your terminal does not support color"});
@@ -702,18 +586,6 @@ class user_interface {
 			for(int i = 0; i < preview_y; i++) {
 				mvwprintw(preview_window, i, 0, std::string(preview_x, ' ').c_str());
 			}
-		}
-
-		std::vector<std::string> get_filenames(std::string directory) {
-			std::vector<std::string> filenames;
-			for(const auto &entry : boost::filesystem::directory_iterator(directory)) {
-				std::string filename = entry.path().string();
-				filename = filename.substr(filename.find_last_of('/') + 1, filename.length());
-				if((filename[0] != '.' && !show_hidden) || (show_hidden)) {
-					filenames.push_back(entry.path().string());
-				}
-			}
-			return filenames;
 		}
 
 		void clear_screen() {
