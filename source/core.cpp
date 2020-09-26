@@ -183,10 +183,6 @@ class user_interface {
 		void handle_frame() {
 			clear_windows();
 
-			if(draw_border) {
-				draw_window_borders();
-			}
-
 			width = COLS;
 			height = LINES;
 
@@ -207,28 +203,7 @@ class user_interface {
 			}
 		}
 
-		// draw 2 borders
-		void draw_window_borders() {
-			for(int i = 2; i < LINES - 2; i++) {
-				mvwaddch(stdscr, i, COLS / 2, ACS_VLINE);
-				mvwaddch(stdscr, i, COLS - 1, ACS_VLINE);
-				mvwaddch(stdscr, i, 0, ACS_VLINE);
-			}
-
-			for(int i = 1; i < COLS - 1; i++) {
-				mvwaddch(stdscr, 1, i, ACS_HLINE);
-				mvwaddch(stdscr, LINES - 2, i, ACS_HLINE);
-			}
-
-			mvwaddch(stdscr, 1, COLS / 2, ACS_TTEE);
-			mvwaddch(stdscr, 1, 0, ACS_ULCORNER);
-			mvwaddch(stdscr, 1, COLS - 1, ACS_URCORNER);
-			mvwaddch(stdscr, LINES - 2, COLS / 2, ACS_BTEE);
-			mvwaddch(stdscr, LINES - 2, 0, ACS_LLCORNER);
-			mvwaddch(stdscr, LINES - 2, COLS - 1, ACS_LRCORNER);
-		}
-
-		// draws EMPTY if directory is empty
+		// draws EMPTY if directory is empty. also permission checks
 		void handle_empty_directory() {
 			if((main_elements.empty())
 			|| (preview_elements.empty()
@@ -248,9 +223,10 @@ class user_interface {
 			}
 
 			if(!main_elements.empty() && preview_elements.empty()) {
-				try {
-					for(const auto &entry : boost::filesystem::directory_iterator(main_elements[selected[0]]));
-				} catch(...) {
+				boost::system::error_code error;
+				for(const auto &entry : boost::filesystem::directory_iterator(main_elements[selected[0]], error));
+
+				if(error.value() == 13) {
 					wattron(preview_window, COLOR_PAIR(9));
 					mvwprintw(preview_window, 0, 0, "NO PERIMISSIONS TO FOLDER");
 					wattroff(preview_window, COLOR_PAIR(9));
@@ -259,10 +235,8 @@ class user_interface {
 		}
 
 		void refresh_windows() {
-			int window_height = draw_border ? LINES - 4 : LINES - 3;
-
-			wresize(main_window, window_height, COLS / 2 - 1);
-			wresize(preview_window, window_height, COLS / 2 - 2);
+			wresize(main_window, LINES - 3, COLS / 2 - 1);
+			wresize(preview_window, LINES - 3, COLS / 2 - 2);
 			mvwin(main_window, 2, 1);
 			mvwin(preview_window, 2, (COLS / 2) + 1);
 

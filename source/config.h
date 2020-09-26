@@ -1,12 +1,8 @@
 # ifndef CONFIG_H
 # define CONFIG_H
 
-/* draw window border */
-static constexpr bool draw_border = false;
-
 /* sets the decimal precision of double */
-static constexpr int size_precision = 2;
-static constexpr int free_size_precision = 1;
+static constexpr int size_precision = 1;
 
 /* amount of spaces for selected element */
 static constexpr int selected_space_size = 2;

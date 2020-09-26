@@ -29,7 +29,7 @@ void commands::wipe_elements(user_interface *ui) {
 /* public helper functions */
 
 // turns int file size to string with character indicating file size type
-std::string commands::format_file_size(unsigned long file_size, int precision) {
+std::string commands::format_file_size(double file_size, int precision) {
 	std::stringstream stream;
 	stream << std::fixed << std::setprecision(precision);
 
@@ -52,7 +52,7 @@ std::string commands::format_file_size(unsigned long file_size, int precision) {
 	return stream.str();
 }
 
-unsigned long commands::file_size(std::string directory) {
+double commands::file_size(std::string directory) {
 	if(boost::filesystem::exists(directory)) {
 		try {
 			return boost::filesystem::file_size(directory);
@@ -63,8 +63,8 @@ unsigned long commands::file_size(std::string directory) {
 }
 
 // gets the sum of all file sizes of directory
-unsigned long commands::file_sizes(std::string directory) {
-	unsigned long sum = 0;
+double commands::file_sizes(std::string directory) {
+	double sum = 0;
 	for(auto const &entry : boost::filesystem::directory_iterator(directory)) {
 		std::string filename = entry.path().string();
 		filename = filename.substr(filename.find_last_of('/') + 1, filename.size());
@@ -156,7 +156,7 @@ std::string commands::file_last_mod_time(std::string directory) {
 }
 
 // get disk free space
-unsigned long commands::free_space(std::string directory) {
+double commands::free_space(std::string directory) {
 	return boost::filesystem::space("/").available;
 }
 
@@ -310,37 +310,35 @@ void commands::load(std::vector<std::string> args, user_interface *ui) {
 	// loop though directory add append to vector
 	int index = 0;
 
-	try { // try catch bad idea? yes. Too bad.
-		for(const auto &entry : boost::filesystem::directory_iterator(directory)) {
-			if(args[0] == "main" && index > LINES
-			|| args[0] == "preview" && index > LINES) {
+	boost::system::error_code error;
+	for(const auto &entry : boost::filesystem::directory_iterator(directory, error)) {
+		if(args[0] == "main" && index > LINES
+		|| args[0] == "preview" && index > LINES) {
 
-				break;
-			}
-
-			if(boost::filesystem::exists(entry.path().string())) {
-				std::string filename = entry.path().string();
-				filename = filename.substr(filename.find_last_of("/") + 1, filename.length());
-				if((filename[0] != '.' && !show_hidden) || (show_hidden)) {
-					if(boost::filesystem::is_directory(entry.path().string())) {
-						filename += "/";
-						int items = directory_items(entry.path().string());
-						if(items != -1) {
-							sizes.push_back(std::to_string(items));
-						} else {
-							sizes.push_back("N/A");
-						}
-					} else {
-						sizes.push_back(format_file_size(file_size(entry.path().string()), size_precision));
-					}
-					elements.push_back(filename);
-				}
-			}
-			index++;
+			break;
 		}
-	} catch(...) {
-	}
 
+		if(boost::filesystem::exists(entry.path().string())) {
+			std::string filename = entry.path().string();
+			filename = filename.substr(filename.find_last_of("/") + 1, filename.length());
+			if((filename[0] != '.' && !show_hidden) || (show_hidden)) {
+			if(boost::filesystem::is_directory(entry.path().string())) {
+					filename += "/";
+					int items = directory_items(entry.path().string());
+					if(items != -1) {
+						sizes.push_back(std::to_string(items));
+					} else {
+						sizes.push_back("N/A");
+					}
+				} else {
+					sizes.push_back(format_file_size(file_size(entry.path().string()), size_precision));
+				}
+				elements.push_back(filename);
+			}
+		}
+		index++;
+	}
+	
 	if(args[0] == "main") {
 		ui->set_main_elements(elements);
 		ui->set_main_sizes(sizes);
@@ -375,9 +373,11 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 			std::string newpath = boost::filesystem::canonical(directory).string();
 
 			if(boost::filesystem::exists(newpath)) {
-				try {
-					boost::filesystem::current_path(newpath);
-				} catch(...) {
+				boost::system::error_code error;
+				boost::filesystem::current_path(newpath, error);
+
+				// permission error
+				if(error.value() == 13) {
 					ui->set_error_message("Cannot change directory (Permission denied)");
 					return;
 				}
@@ -467,7 +467,14 @@ void commands::mkdir(std::vector<std::string> args, user_interface *ui) {
 	std::string filename = combine_vector(args);
 
 	if(!boost::filesystem::exists(filename)) {
-		boost::filesystem::create_directory(filename);
+		boost::system::error_code error;
+		boost::filesystem::create_directory(filename, error);
+
+		if(error.value() == 13) {
+			ui->set_error_message("Cannot create directory (Permission denied)");
+			return;
+		}
+
 		ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 	} else { 
 		if(boost::filesystem::is_directory(filename)) {
@@ -526,22 +533,24 @@ void commands::move_file(std::vector<std::string> args, user_interface *ui) {
 		if(ui->get_selected().size() != 1) {
 			if(boost::filesystem::exists(selected_filename)
 			&& boost::filesystem::is_directory(selected_filename)) {
-				// check if user is trying to move something to a subdirectory of itself
-				for(int i = 1; i < selected.size(); i++) {
-					std::string filename_full = boost::filesystem::canonical(selected_filename).string();
-					std::string target_full = boost::filesystem::canonical(ui->get_main_elements()[selected[i]]).string();
-
-					if(filename_full.substr(0, target_full.length()) == target_full) {
-						ui->set_error_message("Cannot move \""
-								+ ui->get_main_elements()[selected[i]] + "\" to a subdirectory of itself");
-						return;
-					}
-				}
 
 				// loop though selected and move elements to selected filename
 				for(int i = 1; i < selected.size(); i++) {
+					boost::system::error_code error;
 					boost::filesystem::rename(ui->get_main_elements()[selected[i]],
-							selected_filename + ui->get_main_elements()[selected[i]]);
+							selected_filename + ui->get_main_elements()[selected[i]], error);
+
+					// permission errors
+					if(error.value() == 13) {
+						ui->set_error_message("Cannot move (Permission denied)");
+						return;
+					}
+
+					// subdirectory errors
+					if(error.value() == 22) {
+						ui->set_error_message("Cannot move \"" + ui->get_main_elements()[selected[i]] + "\" into a subdirectory of itself");
+						return;
+					}
 				}
 				ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 			} else {
@@ -563,13 +572,13 @@ void commands::move_file(std::vector<std::string> args, user_interface *ui) {
 			
 			std::vector<int> selected = ui->get_selected();
 
-			// check for impossible scenario
+			// loop through and move
 			for(int i = 1; i < selected.size(); i++) {
-				boost::filesystem::path base_path(boost::filesystem::canonical(ui->get_main_elements()[ui->get_selected()[i]]));
+				boost::filesystem::path base_path(boost::filesystem::canonical(ui->get_main_elements()[selected[i]]));
 				std::string target_path = boost::filesystem::canonical(filename).string()
 					+ "/" + base_path.filename().string();
-				boost::filesystem::path filename_full = boost::filesystem::canonical(filename).string();
 
+				// file already exists error
 				if(boost::filesystem::exists(target_path)) {
 					if(boost::filesystem::is_directory(target_path)) {
 						ui->set_error_message("Cannot move \"" + target_path + "\" (directory exists)");
@@ -579,24 +588,33 @@ void commands::move_file(std::vector<std::string> args, user_interface *ui) {
 					return;
 				}
 
-				if(filename_full.string().substr(0, base_path.string().length()) == base_path.string()) {
-					ui->set_error_message("Cannot move \""
-							+ ui->get_main_elements()[selected[i]] + "\" to a subdirectory of itself");
+				boost::system::error_code error;
+				boost::filesystem::rename(base_path, target_path, error);
+
+				// permission errors
+				if(error.value() == 13) {
+					ui->set_error_message("Cannot move \"" + base_path.string() + "\" (Permission denied)");
+					return;
+				}
+
+				// subdirectory errors
+				if(error.value() == 22) {
+					ui->set_error_message("Cannot move \"" + ui->get_main_elements()[selected[i]] + "\" into a subdirectory of itself");
 					return;
 				}
 			}
 
-			// loop through and move
-			for(int i = 1; i < selected.size(); i++) {
-				boost::filesystem::path base_path(boost::filesystem::canonical(ui->get_main_elements()[selected[i]]));
-				boost::filesystem::rename(base_path, boost::filesystem::canonical(filename).string()
-					+ "/" + base_path.filename().string());
-			}
-
 			ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 		} else if(!boost::filesystem::exists(filename)) {
+			boost::system::error_code error;
 			boost::filesystem::rename(boost::filesystem::canonical(ui->get_main_elements()[ui->get_selected()[0]]),
-					boost::filesystem::weakly_canonical(filename));
+					boost::filesystem::weakly_canonical(filename), error);
+
+			// permission errors
+			if(error.value() == 13) {
+				ui->set_error_message("Cannot move \"" + filename + "\" (Permission denied)");
+				return;
+			}
 		}
 	}
 }
@@ -605,19 +623,19 @@ void commands::rename(std::vector<std::string> args, user_interface *ui) {
 	boost::filesystem::path selected_filename(
 			ui->get_main_elements()[ui->get_selected()[0]]);
 	mvprintw(LINES - 1, 0, ":");
-	process_command(get({"3", "mv", selected_filename.extension().string()}, 1, false, ui), ui);
+	process_command(get({"2", "mv", selected_filename.extension().string()}, 1, false, ui), ui);
 }
 
 void commands::begin_move(std::vector<std::string> args, user_interface *ui) {
 	mvprintw(LINES - 1, 0, ":");
-	process_command(get({"3", "mv", ui->get_main_elements()[ui->get_selected()[0]]}, 1, false, ui), ui);
+	process_command(get({"2", "mv", ui->get_main_elements()[ui->get_selected()[0]]}, 1, false, ui), ui);
 }
 
 void commands::end_move(std::vector<std::string> args, user_interface *ui) {
 	boost::filesystem::path selected_filename(
 				ui->get_main_elements()[ui->get_selected()[0]]);
 
-	int begin_at = 3 + (selected_filename.string().length() -
+	int begin_at = 2 + (selected_filename.string().length() -
 			selected_filename.extension().string().length());
 
 	mvprintw(LINES - 1, 0, ":");
@@ -640,8 +658,13 @@ void commands::remove(std::vector<std::string> args, user_interface *ui) {
 		}
 
 		for(int i = 1; i < selected.size(); i++) {
-			if(boost::filesystem::exists(ui->get_main_elements()[selected[i]])) {
-				boost::filesystem::remove_all(ui->get_main_elements()[selected[i]]);
+			boost::system::error_code error;
+			boost::filesystem::remove_all(ui->get_main_elements()[selected[i]], error);
+
+			// permission errors
+			if(error.value() == 13) {
+				ui->set_error_message("Cannot remove \"" + ui->get_main_elements()[selected[i]] + "\" (Permission denied)");
+				return;
 			}
 		}
 	} else {
@@ -654,7 +677,15 @@ void commands::remove(std::vector<std::string> args, user_interface *ui) {
 				ui->set_message("ignored.");
 				return;
 			}
-			boost::filesystem::remove_all(boost::filesystem::canonical(filename));
+
+			boost::system::error_code error;
+			boost::filesystem::remove_all(boost::filesystem::canonical(filename), error);
+
+			// permission errors
+			if(error.value() == 13) {
+				ui->set_error_message("Cannot remove \"" + boost::filesystem::canonical(filename).string() + "\" (Permission denied)");
+				return;
+			}
 		} else {
 			ui->set_error_message("Cannot remove \"" + filename + "\" (No such file or directory)");
 			return;
@@ -669,6 +700,12 @@ void commands::touch(std::vector<std::string> args, user_interface *ui) {
 	if(!boost::filesystem::exists(filename)) {
 		std::ofstream write(filename);
 		write.close();
+
+		if(write.fail()) {
+			ui->set_error_message("Cannot create file \"" + filename + "\" (Permissions denied)");
+			return;
+		}
+
 		ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 	} else {
 		if(boost::filesystem::is_directory(filename)) {
@@ -723,6 +760,7 @@ void commands::copy(std::vector<std::string> args, user_interface *ui) {
 			command += "\" | xclip -selection clipboard";
 			command.insert(0, "echo -e \"");
 			system(command.c_str());
+			ui->set_message("copyed.");
 		} else {
 			ui->set_error_message("Cannot copy (No selected elements)");
 		}
@@ -739,42 +777,54 @@ void commands::copy(std::vector<std::string> args, user_interface *ui) {
 
 			std::vector<int> selected = ui->get_selected();
 
-			// scans for errors
-			for(int i = 1; i < selected.size(); i++) {
-				std::string selected_filename = ui->get_main_elements()[selected[i]];
-
-				boost::filesystem::path base_path(boost::filesystem::canonical(selected_filename));
-				std::string target = boost::filesystem::canonical(filename).string()
-					+ "/" + base_path.filename().string();
-				std::string filename_full = boost::filesystem::canonical(filename).string();
-
-				if(filename_full.substr(0, base_path.string().length()) == base_path
-				|| boost::filesystem::exists(target)) {
-
-					if(boost::filesystem::exists(target)) {
-						ui->set_error_message("Cannot copy to \"" + target + "\" (File already exists)");
-					} else {
-						ui->set_error_message("Cannot copy \""
-								+ ui->get_main_elements()[selected[i]] + "\" to a subdirectory of itself");
-					}
-					return;
-				}
+			if(selected.size() == 1) {
+				ui->set_error_message("Cannot copy (No selected elements)");
+				return;
 			}
 
 			// does the copying
 			for(int i = 1; i < selected.size(); i++) {
-				std::string selected_filename = ui->get_main_elements()[selected[i]];
-				boost::filesystem::path base_path(boost::filesystem::canonical(selected_filename));
+				boost::filesystem::path base_path(boost::filesystem::canonical(ui->get_main_elements()[selected[i]]));
+				boost::filesystem::path target_path(boost::filesystem::canonical(filename).string() + "/" + base_path.filename().string());
 
+				// subdirectory error
+				if(target_path.string().substr(0, base_path.string().length()) == base_path.string()) {
+					ui->set_error_message("Cannot copy \"" + base_path.string() + "\" into a subdirectory of itself");
+					return;
+				}
+
+				// exists error
+				if(boost::filesystem::exists(target_path)) {
+					if(boost::filesystem::is_directory(target_path)) {
+						ui->set_error_message("Cannot copy \"" + base_path.string() + "\" (Directory exists)");
+					} else {
+						ui->set_error_message("Cannot copy \"" + base_path.string() + "\" (File exists)");
+					}
+					return;
+				}
+
+				std::error_code error;
 				std::experimental::filesystem::copy(base_path.string(),
-						boost::filesystem::canonical(filename).string() + "/" + base_path.filename().string(),
-						std::experimental::filesystem::copy_options::recursive);
+						target_path.string(), std::experimental::filesystem::copy_options::recursive, error);
+
+				// permission error
+				if(error.value() == 13) {
+					ui->set_error_message("Cannot copy to \"" + target_path.string() + "\" {Permission denied)");
+					return;
+				}
 			}
 			ui->set_selected(std::vector<int>{ui->get_selected()[0]});
 		} else if(!boost::filesystem::exists(filename)) {
+			std::error_code error;
 			std::experimental::filesystem::copy(ui->get_main_elements()[ui->get_selected()[0]],
 					boost::filesystem::weakly_canonical(filename).string(),
-					std::experimental::filesystem::copy_options::recursive);
+					std::experimental::filesystem::copy_options::recursive, error);
+
+			// permission errors
+			if(error.value() == 13) {
+				ui->set_error_message("Cannot copy \"" + ui->get_main_elements()[ui->get_selected()[0]] + "\" (Permission denied)");
+				return;
+			}
 		}
 	}
 }
@@ -795,34 +845,43 @@ void commands::paste(user_interface *ui) {
 	std::stringstream stream(result);
 	std::string line;
 
-	// check for errors
-	while(std::getline(stream, line, '\n')) {
-		std::string target = boost::filesystem::current_path().string()
-				+ "/" + line.substr(line.find_last_of("/") + 1, line.length());
-
-		if(boost::filesystem::exists(target)
-		|| line == target) {
-
-			if(boost::filesystem::exists(target)) {
-				if(boost::filesystem::is_directory(target)) {
-					ui->set_error_message("Cannot paste \"" + target + "\" (Directory exists)");
-				} else {
-					ui->set_error_message("Cannot paste \"" + target + "\" (File exists)");
-				}
-			} else {
-				ui->set_error_message("Cannot paste \"" + target + "\" into a subdirectory if itself");
-			}
-			return;
-		}
-	}
-
 	stream = std::stringstream(result);
 	
 	// do the copying
 	while(std::getline(stream, line, '\n')) {
-		std::experimental::filesystem::copy(line, boost::filesystem::current_path().string()
-				+ "/" + line.substr(line.find_last_of("/") + 1, line.length()),
-				std::experimental::filesystem::copy_options::recursive);
+		std::string target = boost::filesystem::current_path().string()
+				+ "/" + line.substr(line.find_last_of("/") + 1, line.length());
+
+		// exists error
+		if(boost::filesystem::exists(target)) {
+			if(boost::filesystem::is_directory(target)) {
+				ui->set_error_message("Cannot paste \"" + target + "\" (Directory exists)");
+			} else {
+				ui->set_error_message("Cannot paste \"" + target + "\" (File exists)");
+			}
+			return;
+		}
+
+		// more exists error
+		if(!boost::filesystem::exists(line)) {
+			ui->set_error_message("Cannot paste \"" + line + "\" (No such file or directory)");
+			return;
+		}
+
+		// subdirectory error
+		if(target.substr(0, line.length()) == line) {
+			ui->set_error_message("Cannot paste \"" + line + "\" into a subdirectory of itself");
+			return;
+		}
+
+		std::error_code error;
+		std::experimental::filesystem::copy(line, target, std::experimental::filesystem::copy_options::recursive, error);
+
+		// permission error
+		if(error.value() == 13) {
+			ui->set_error_message("Cannot paste \"" + target + "\" (Permission denied)");
+			return;
+		}
 	}
 
 	ui->set_selected(std::vector<int>{ui->get_selected()[0]});
@@ -843,6 +902,8 @@ void commands::bottom(user_interface *ui) {
 void commands::shell(std::vector<std::string> args) {
 	system(combine_vector(args).c_str());
 }
+
+// asdf sdaf asdf asdf sf 
 
 void commands::extract(std::vector<std::string> args, user_interface *ui) {
 	if(args.size() == 0) {
