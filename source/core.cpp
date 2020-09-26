@@ -246,6 +246,16 @@ class user_interface {
 				mvwprintw(empty_window, 0, 0, "EMPTY");
 				wattroff(empty_window, COLOR_PAIR(9));
 			}
+
+			if(!main_elements.empty() && preview_elements.empty()) {
+				try {
+					for(const auto &entry : boost::filesystem::directory_iterator(main_elements[selected[0]]));
+				} catch(...) {
+					wattron(preview_window, COLOR_PAIR(9));
+					mvwprintw(preview_window, 0, 0, "NO PERIMISSIONS TO FOLDER");
+					wattroff(preview_window, COLOR_PAIR(9));
+				}
+			}
 		}
 
 		void refresh_windows() {
@@ -262,8 +272,7 @@ class user_interface {
 
 		// draw the current directory at top
 		void draw_current_directory() {
-			std::string current_path = std::string(
-					boost::filesystem::current_path().string());
+			std::string current_path = boost::filesystem::current_path().string();
 
 			mvwprintw(stdscr, 0, 0, std::string(COLS, ' ').c_str());
 			mvwprintw(stdscr, 0, 0, current_path.c_str());
@@ -272,7 +281,7 @@ class user_interface {
 
 			if(!main_elements.empty()) {
 				mvwprintw(stdscr, 0, current_path.length(),
-						std::string("/" + main_elements[selected[0]]).c_str());
+						std::string((current_path != "/" ? "/" : "") + main_elements[selected[0]]).c_str());
 			}
 
 			wattroff(stdscr, A_BOLD);

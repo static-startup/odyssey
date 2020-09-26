@@ -93,12 +93,16 @@ int commands::directory_items(std::string directory) {
 	if(boost::filesystem::exists(directory)
 	&& boost::filesystem::is_directory(directory)) {
 
-		for(auto const &entry : boost::filesystem::directory_iterator(directory)) {
-			std::string filename = entry.path().string();
-			filename = filename.substr(filename.find_last_of('/') + 1, filename.size());
-			if((filename[0] != '.' && !show_hidden) || show_hidden) {
-				sum++;
+		try {
+			for(auto const &entry : boost::filesystem::directory_iterator(directory)) {
+				std::string filename = entry.path().string();
+				filename = filename.substr(filename.find_last_of('/') + 1, filename.size());
+				if((filename[0] != '.' && !show_hidden) || show_hidden) {
+					sum++;
+				}
 			}
+		} catch(...) {
+			return -1;
 		}
 	}
 	return sum;
@@ -304,20 +308,37 @@ void commands::load(std::vector<std::string> args, user_interface *ui) {
 	}
 
 	// loop though directory add append to vector
-	for(const auto &entry : boost::filesystem::directory_iterator(directory)) {
-		if(boost::filesystem::exists(entry.path().string())) {
-			std::string filename = entry.path().string();
-			filename = filename.substr(filename.find_last_of("/") + 1, filename.length());
-			if((filename[0] != '.' && !show_hidden) || (show_hidden)) {
-				if(boost::filesystem::is_directory(entry.path().string())) {
-					filename += "/";
-					sizes.push_back(std::to_string(directory_items(entry.path().string())));
-				} else {
-					sizes.push_back(format_file_size(file_size(entry.path().string()), size_precision));
-				}
-				elements.push_back(filename);
+	int index = 0;
+
+	try { // try catch bad idea? yes. Too bad.
+		for(const auto &entry : boost::filesystem::directory_iterator(directory)) {
+			if(args[0] == "main" && index > LINES
+			|| args[0] == "preview" && index > LINES) {
+
+				break;
 			}
+
+			if(boost::filesystem::exists(entry.path().string())) {
+				std::string filename = entry.path().string();
+				filename = filename.substr(filename.find_last_of("/") + 1, filename.length());
+				if((filename[0] != '.' && !show_hidden) || (show_hidden)) {
+					if(boost::filesystem::is_directory(entry.path().string())) {
+						filename += "/";
+						int items = directory_items(entry.path().string());
+						if(items != -1) {
+							sizes.push_back(std::to_string(items));
+						} else {
+							sizes.push_back("N/A");
+						}
+					} else {
+						sizes.push_back(format_file_size(file_size(entry.path().string()), size_precision));
+					}
+					elements.push_back(filename);
+				}
+			}
+			index++;
 		}
+	} catch(...) {
 	}
 
 	if(args[0] == "main") {
@@ -350,13 +371,19 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 		if(boost::filesystem::exists(directory)
 		&& boost::filesystem::is_directory(directory)) {
 
-			ui->set_selected(std::vector<int>{ 0 });
-
 			std::string oldpath = boost::filesystem::current_path().string();
 			std::string newpath = boost::filesystem::canonical(directory).string();
 
 			if(boost::filesystem::exists(newpath)) {
-				boost::filesystem::current_path(newpath);
+				try {
+					boost::filesystem::current_path(newpath);
+				} catch(...) {
+					ui->set_error_message("Cannot change directory (Permission denied)");
+					return;
+				}
+
+				ui->set_selected(std::vector<int>{ 0 });
+
 				load({"main"}, ui);
 
 				// if directory not empty? set selected to previous selected
@@ -380,10 +407,11 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 					}
 				}
 
-				// if oldpath contains newpath and oldpath is bigger then newpath
-				if(std::count(oldpath.begin(), oldpath.end(), '/')
+				// if oldpath contains newpath and oldpath is bigger then newpath or in root directory
+				if((std::count(oldpath.begin(), oldpath.end(), '/')
 				> std::count(newpath.begin(), newpath.end(), '/')
-				&& oldpath.substr(0, newpath.length()) == newpath) {
+				&& oldpath.substr(0, newpath.length()) == newpath)
+				|| newpath == "/") {
 
 					if(!ui->get_main_elements().empty()) {
 
@@ -404,7 +432,13 @@ void commands::cd(std::vector<std::string> args, user_interface *ui) {
 					}
 
 					// sets selected to folder we came from
-					std::string filename = oldpath.substr(newpath.length() + 1, oldpath.length());
+					std::string filename;
+					if(newpath == "/") {
+						filename = oldpath.substr(newpath.length(), oldpath.length());
+					} else {
+						filename = oldpath.substr(newpath.length() + 1, oldpath.length());
+					}
+
 					if(std::count(filename.begin(), filename.end(), '/') == 0) {
 						ui->set_selected(filename + "/");
 					} else {
