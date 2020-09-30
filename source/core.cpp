@@ -324,9 +324,9 @@ class user_interface {
 
 					// draw colors
 					if(main_window) {
-						handle_colors(elements[i]);
+						handle_colors(elements[index]);
 					} else {
-						handle_colors(main_elements[selected[0]] + "/" + elements[i]);
+						handle_colors(main_elements[selected[0]] + "/" + elements[index]);
 					}
 
 					std::string size = sizes[index];
