@@ -186,13 +186,13 @@ static const std::vector<open> open_map = {
 	{ ".mpv",       "mpv {f} > /dev/null 2>&1" },
 
 	/* audios */
-	{ ".wav",       "mpv {f} > /dev/null 2>&1" },
-	{ ".aiff",      "mpv {f} > /dev/null 2>&1" },
-	{ ".au",        "mpv {f} > /dev/null 2>&1" },
-	{ ".m4a",       "mpv {f} > /dev/null 2>&1" },
-	{ ".flac",      "mpv {f} > /dev/null 2>&1" },
-	{ ".mp3",       "mpv {f} > /dev/null 2>&1" },
-	{ ".aac",       "mpv {f} > /dev/null 2>&1" },
+	{ ".wav",       "mpv --player-operation-mode=pseudo-gui {f} > /dev/null 2>&1" },
+	{ ".aiff",      "mpv --player-operation-mode=pseudo-gui {f} > /dev/null 2>&1" },
+	{ ".au",        "mpv --player-operation-mode=pseudo-gui {f} > /dev/null 2>&1" },
+	{ ".m4a",       "mpv --player-operation-mode=pseudo-gui {f} > /dev/null 2>&1" },
+	{ ".flac",      "mpv --player-operation-mode=pseudo-gui {f} > /dev/null 2>&1" },
+	{ ".mp3",       "mpv --player-operation-mode=pseudo-gui {f} > /dev/null 2>&1" },
+	{ ".aac",       "mpv --player-operation-mode=pseudo-gui {f} > /dev/null 2>&1" },
 
 	/* ebooks */
 	{ ".epub",      "ebook-viewer {f} > /dev/null 2>&1" },
